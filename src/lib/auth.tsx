@@ -35,41 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isMiniApp, setIsMiniApp] = useState(false);
 
-  const buildUser = useCallback((): UserData | null => {
-    const wallet = MiniKit.user?.walletAddress;
-    if (!wallet) {
-      // Try getting it from window.WorldApp directly
-      const w = typeof window !== "undefined"
-        ? (window as unknown as Record<string, unknown>).WorldApp as Record<string, unknown> | undefined
-        : undefined;
-      const rawWallet = w?.wallet_address as string | undefined;
-      if (!rawWallet) return null;
-
-      const vs = w?.verification_status as Record<string, boolean> | undefined;
-      return {
-        walletAddress: rawWallet,
-        username: MiniKit.user?.username,
-        profilePictureUrl: MiniKit.user?.profilePictureUrl,
-        isOrbVerified: vs?.is_orb_verified ?? false,
-        isDocumentVerified: vs?.is_document_verified ?? false,
-        isConnected: true,
-        deviceOS: MiniKit.deviceProperties?.deviceOS,
-        worldAppVersion: MiniKit.deviceProperties?.worldAppVersion,
-      };
-    }
-
-    return {
-      walletAddress: wallet,
-      username: MiniKit.user?.username,
-      profilePictureUrl: MiniKit.user?.profilePictureUrl,
-      isOrbVerified: MiniKit.user?.verificationStatus?.isOrbVerified ?? false,
-      isDocumentVerified: MiniKit.user?.verificationStatus?.isDocumentVerified ?? false,
-      isConnected: true,
-      deviceOS: MiniKit.deviceProperties?.deviceOS,
-      worldAppVersion: MiniKit.deviceProperties?.worldAppVersion,
-    };
-  }, []);
-
+  // Check if already signed in (from sessionStorage)
   useEffect(() => {
     const init = async () => {
       await new Promise((r) => setTimeout(r, 500));
@@ -77,23 +43,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const installed = MiniKit.isInstalled();
       setIsMiniApp(installed);
 
-      if (installed) {
-        const u = buildUser();
-        if (u) setUser(u);
+      // Check sessionStorage for existing session
+      if (typeof window !== "undefined") {
+        const saved = sessionStorage.getItem("agentfi_user");
+        if (saved) {
+          try {
+            setUser(JSON.parse(saved));
+          } catch {
+            // ignore
+          }
+        }
       }
 
       setIsLoading(false);
     };
 
     init();
-  }, [buildUser]);
+  }, []);
 
   const signIn = useCallback(async () => {
     setIsLoading(true);
     try {
       if (MiniKit.isInstalled()) {
-        const res = await fetch("/api/nonce");
-        const { nonce } = await res.json();
+        const nonce = crypto.randomUUID().replace(/-/g, "");
 
         const result = await MiniKit.walletAuth({
           nonce,
@@ -101,33 +73,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           expirationTime: new Date(Date.now() + 1000 * 60 * 60),
         });
 
-        if (result.executedWith !== "fallback") {
-          const verifyRes = await fetch("/api/complete-siwe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ payload: result.data, nonce }),
-          });
-          const verification = await verifyRes.json();
+        if (result.executedWith !== "fallback" && result.data) {
+          // Wait a bit for MiniKit to populate user data
+          await new Promise((r) => setTimeout(r, 500));
 
-          if (verification.isValid) {
-            // After walletAuth, username and profilePictureUrl get populated
-            await new Promise((r) => setTimeout(r, 300));
-            const u = buildUser();
-            if (u) {
-              u.walletAddress = verification.address;
-              setUser(u);
-            }
-          }
+          const userData: UserData = {
+            walletAddress: result.data.address,
+            username: MiniKit.user?.username,
+            profilePictureUrl: MiniKit.user?.profilePictureUrl,
+            isOrbVerified: MiniKit.user?.verificationStatus?.isOrbVerified ?? false,
+            isDocumentVerified: MiniKit.user?.verificationStatus?.isDocumentVerified ?? false,
+            isConnected: true,
+            deviceOS: MiniKit.deviceProperties?.deviceOS,
+            worldAppVersion: MiniKit.deviceProperties?.worldAppVersion,
+          };
+
+          setUser(userData);
+          sessionStorage.setItem("agentfi_user", JSON.stringify(userData));
         }
       }
     } catch (e) {
       console.error("Sign in failed:", e);
     }
     setIsLoading(false);
-  }, [buildUser]);
+  }, []);
 
   const signOut = useCallback(() => {
     setUser(null);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("agentfi_user");
+    }
   }, []);
 
   return (

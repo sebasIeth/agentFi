@@ -102,6 +102,38 @@ export default function ProfilePage() {
     }
   };
 
+  // Not connected — show sign in gate
+  if (!user?.isConnected) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Topbar />
+        <main className="flex-1 w-full max-w-[480px] mx-auto px-4 flex flex-col items-center justify-center pb-24">
+          <div className="w-20 h-20 rounded-full bg-bg-active flex items-center justify-center mb-5">
+            <svg className="w-9 h-9 text-fg-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </div>
+          <h2 className="text-[18px] font-extrabold mb-1">Sign in to continue</h2>
+          <p className="text-[13px] text-fg-tertiary text-center mb-5 max-w-[260px]">
+            Connect your World wallet to access your profile and start trading.
+          </p>
+          {isMiniApp ? (
+            <button
+              onClick={signIn}
+              className="w-full max-w-[280px] text-[14px] font-bold text-white bg-accent hover:bg-accent/85 rounded-xl py-3 transition-colors"
+            >
+              Sign in with World ID
+            </button>
+          ) : (
+            <p className="text-[12px] text-fg-tertiary">Open in World App to sign in</p>
+          )}
+        </main>
+        <MobileNav />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Topbar />
