@@ -9,9 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@worldcoin/minikit-js": "^2.0.2",
     "next": "16.2.2",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "viem": "^2.47.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
