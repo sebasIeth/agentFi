@@ -8,7 +8,17 @@ import MobileNav from "@/components/MobileNav";
 import KindBadge from "@/components/KindBadge";
 import AgentAvatar from "@/components/AgentAvatar";
 import { IconArrowRight } from "@/components/Icons";
-import { agents, posts, getPostsByAgent } from "@/lib/mockData";
+import { agents, posts } from "@/lib/mockData";
+import { useAuth } from "@/lib/auth";
+
+function BackIcon() {
+  return (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 12H5" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
+  );
+}
 
 function SettingsIcon() {
   return (
@@ -24,15 +34,6 @@ function EditIcon() {
     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  );
-}
-
-function BackIcon() {
-  return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 12H5" />
-      <polyline points="12 19 5 12 12 5" />
     </svg>
   );
 }
@@ -66,16 +67,40 @@ function HoldingIcon({ active }: { active: boolean }) {
   );
 }
 
-// The "current user" — Seb.eth (id: 7)
-const me = agents.find((a) => a.id === "7")!;
-const myPosts = posts.filter((p) => p.agentId === me.id);
-const myAgent = agents.find((a) => a.id === "1")!; // Alpha trader is "my agent"
+function CopyIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+const mockMe = agents.find((a) => a.id === "7")!;
+const myPosts = posts.filter((p) => p.agentId === mockMe.id);
+const myAgent = agents.find((a) => a.id === "1")!;
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { user, isMiniApp, signIn } = useAuth();
   const [activeTab, setActiveTab] = useState<"posts" | "holdings" | "activity">("posts");
+  const [copied, setCopied] = useState(false);
 
-  const holdingsList = agents.filter((a) => a.id !== me.id).slice(0, 4);
+  const holdingsList = agents.filter((a) => a.id !== mockMe.id).slice(0, 4);
+
+  const displayName = user?.username || mockMe.name;
+  const walletAddr = user?.walletAddress;
+  const shortAddr = walletAddr ? `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}` : null;
+  const profilePic = user?.profilePictureUrl || mockMe.image;
+  const isOrbVerified = user?.isOrbVerified ?? false;
+
+  const handleCopy = () => {
+    if (walletAddr) {
+      navigator.clipboard.writeText(walletAddr).catch(() => {});
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -86,7 +111,7 @@ export default function ProfilePage() {
           <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors">
             <BackIcon />
           </button>
-          <span className="text-[15px] font-extrabold tracking-tight">{me.name}</span>
+          <span className="text-[15px] font-extrabold tracking-tight">{displayName}</span>
           <button className="text-fg-secondary hover:text-fg transition-colors">
             <SettingsIcon />
           </button>
@@ -97,18 +122,18 @@ export default function ProfilePage() {
           <div className="flex items-start gap-4 mb-4">
             <div
               className="w-20 h-20 rounded-full overflow-hidden ring-4 ring-border shrink-0"
-              style={{ backgroundColor: me.color }}
+              style={{ backgroundColor: mockMe.color }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={me.image} alt={me.name} className="w-full h-full object-cover" />
+              <img src={profilePic} alt={displayName} className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 flex items-center justify-around pt-2">
               <div className="text-center">
-                <div className="text-[17px] font-extrabold">{me.totalPosts}</div>
+                <div className="text-[17px] font-extrabold">{mockMe.totalPosts}</div>
                 <div className="text-[11px] text-fg-tertiary font-medium">Posts</div>
               </div>
               <div className="text-center">
-                <div className="text-[17px] font-extrabold">{me.holders}</div>
+                <div className="text-[17px] font-extrabold">{mockMe.holders}</div>
                 <div className="text-[11px] text-fg-tertiary font-medium">Holders</div>
               </div>
               <div className="text-center">
@@ -120,10 +145,56 @@ export default function ProfilePage() {
 
           {/* Name + badge */}
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-[17px] font-extrabold">{me.name}</h1>
+            <h1 className="text-[17px] font-extrabold">{displayName}</h1>
             <KindBadge kind="human" />
+            {isOrbVerified && (
+              <span className="text-[10px] font-bold text-green bg-green-soft px-1.5 py-0.5 rounded-md">Orb verified</span>
+            )}
           </div>
-          <div className="text-[13px] text-fg-tertiary mb-2">{me.ens}</div>
+
+          {/* Wallet address */}
+          {walletAddr && (
+            <button onClick={handleCopy} className="flex items-center gap-1.5 text-[12px] text-fg-tertiary hover:text-fg transition-colors mb-1">
+              <span className="font-mono">{shortAddr}</span>
+              {copied ? (
+                <span className="text-green text-[10px] font-bold">Copied!</span>
+              ) : (
+                <CopyIcon />
+              )}
+            </button>
+          )}
+
+          <div className="text-[13px] text-fg-tertiary mb-2">{mockMe.ens}</div>
+
+          {/* World App connection card */}
+          {isMiniApp && user?.isConnected && (
+            <div className="rounded-xl border border-green/20 bg-green-soft p-3 mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full bg-green" />
+                <div>
+                  <div className="text-[12px] font-bold text-green">Connected to World App</div>
+                  <div className="text-[11px] text-green/70">
+                    {user.deviceOS === "ios" ? "iOS" : "Android"} · World App v{user.worldAppVersion}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isMiniApp && !user?.isConnected && (
+            <button
+              onClick={signIn}
+              className="w-full rounded-xl border border-accent/20 bg-accent-soft p-3 mb-3 text-left"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                <div>
+                  <div className="text-[12px] font-bold text-accent-fg">Tap to connect wallet</div>
+                  <div className="text-[11px] text-accent-fg/70">Sign in with World ID to unlock all features</div>
+                </div>
+              </div>
+            </button>
+          )}
 
           {/* Bio */}
           <p className="text-[14px] text-fg-secondary leading-relaxed mb-3">
@@ -132,7 +203,7 @@ export default function ProfilePage() {
 
           {/* Followers */}
           <div className="flex items-center gap-4 text-[13px] mb-4">
-            <span><strong className="text-fg">{me.holders}</strong> <span className="text-fg-tertiary">Followers</span></span>
+            <span><strong className="text-fg">{mockMe.holders}</strong> <span className="text-fg-tertiary">Followers</span></span>
             <span><strong className="text-fg">12</strong> <span className="text-fg-tertiary">Following</span></span>
           </div>
 
@@ -202,17 +273,13 @@ export default function ProfilePage() {
               {myPosts.map((post) => {
                 const positive = post.priceChange >= 0;
                 return (
-                  <Link
-                    key={post.id}
-                    href={`/post/${post.id}`}
-                    className="aspect-square bg-bg-elevated relative overflow-hidden group"
-                  >
+                  <Link key={post.id} href={`/post/${post.id}`} className="aspect-square bg-bg-elevated relative overflow-hidden group">
                     {post.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={post.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
                       <>
-                        <div className="absolute inset-0" style={{ backgroundColor: me.color + "08" }} />
+                        <div className="absolute inset-0" style={{ backgroundColor: mockMe.color + "08" }} />
                         <div className="absolute inset-0 p-3 flex flex-col justify-between">
                           <p className="text-[11px] leading-[1.4] text-fg/70 line-clamp-4">{post.content}</p>
                           <span className={`text-[11px] font-bold ${positive ? "text-green" : "text-red"}`}>
@@ -279,23 +346,15 @@ export default function ProfilePage() {
               { type: "sold", agent: agents[3], amount: "$0.50", time: "5h ago" },
               { type: "post", time: "1d ago", content: "Exploring the agentfi ecosystem..." },
             ].map((act, i) => (
-              <div
-                key={i}
-                className={`flex items-start gap-3 px-4 py-3.5 ${i < 4 ? "border-b border-border/40" : ""}`}
-              >
+              <div key={i} className={`flex items-start gap-3 px-4 py-3.5 ${i < 4 ? "border-b border-border/40" : ""}`}>
                 {act.type === "post" ? (
                   <div className="w-8 h-8 rounded-full bg-accent-soft flex items-center justify-center shrink-0">
                     <svg className="w-4 h-4 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="17" y1="10" x2="3" y2="10" />
-                      <line x1="21" y1="6" x2="3" y2="6" />
-                      <line x1="21" y1="14" x2="3" y2="14" />
-                      <line x1="17" y1="18" x2="3" y2="18" />
+                      <line x1="17" y1="10" x2="3" y2="10" /><line x1="21" y1="6" x2="3" y2="6" /><line x1="21" y1="14" x2="3" y2="14" /><line x1="17" y1="18" x2="3" y2="18" />
                     </svg>
                   </div>
                 ) : (
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                    act.type === "bought" ? "bg-green-soft" : "bg-red-soft"
-                  }`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${act.type === "bought" ? "bg-green-soft" : "bg-red-soft"}`}>
                     <svg className={`w-4 h-4 ${act.type === "bought" ? "text-green" : "text-red"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                       {act.type === "bought" ? <polyline points="7 13 12 8 17 13" /> : <polyline points="7 11 12 16 17 11" />}
                     </svg>

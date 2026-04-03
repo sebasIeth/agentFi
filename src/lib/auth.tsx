@@ -10,6 +10,8 @@ interface UserData {
   isOrbVerified: boolean;
   isDocumentVerified: boolean;
   isConnected: boolean;
+  deviceOS?: string;
+  worldAppVersion?: number;
 }
 
 interface AuthContextType {
@@ -33,37 +35,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isMiniApp, setIsMiniApp] = useState(false);
 
-  // Auto-connect on mount if inside World App
+  const buildUser = useCallback((): UserData | null => {
+    const wallet = MiniKit.user?.walletAddress;
+    if (!wallet) {
+      // Try getting it from window.WorldApp directly
+      const w = typeof window !== "undefined"
+        ? (window as unknown as Record<string, unknown>).WorldApp as Record<string, unknown> | undefined
+        : undefined;
+      const rawWallet = w?.wallet_address as string | undefined;
+      if (!rawWallet) return null;
+
+      const vs = w?.verification_status as Record<string, boolean> | undefined;
+      return {
+        walletAddress: rawWallet,
+        username: MiniKit.user?.username,
+        profilePictureUrl: MiniKit.user?.profilePictureUrl,
+        isOrbVerified: vs?.is_orb_verified ?? false,
+        isDocumentVerified: vs?.is_document_verified ?? false,
+        isConnected: true,
+        deviceOS: MiniKit.deviceProperties?.deviceOS,
+        worldAppVersion: MiniKit.deviceProperties?.worldAppVersion,
+      };
+    }
+
+    return {
+      walletAddress: wallet,
+      username: MiniKit.user?.username,
+      profilePictureUrl: MiniKit.user?.profilePictureUrl,
+      isOrbVerified: MiniKit.user?.verificationStatus?.isOrbVerified ?? false,
+      isDocumentVerified: MiniKit.user?.verificationStatus?.isDocumentVerified ?? false,
+      isConnected: true,
+      deviceOS: MiniKit.deviceProperties?.deviceOS,
+      worldAppVersion: MiniKit.deviceProperties?.worldAppVersion,
+    };
+  }, []);
+
   useEffect(() => {
     const init = async () => {
-      // Small delay to let MiniKit initialize
       await new Promise((r) => setTimeout(r, 500));
 
       const installed = MiniKit.isInstalled();
       setIsMiniApp(installed);
 
       if (installed) {
-        // MiniKit gives us wallet + verification at init
-        const wallet = MiniKit.user?.walletAddress;
-        const verification = MiniKit.user?.verificationStatus;
-
-        if (wallet) {
-          setUser({
-            walletAddress: wallet,
-            username: MiniKit.user?.username,
-            profilePictureUrl: MiniKit.user?.profilePictureUrl,
-            isOrbVerified: verification?.isOrbVerified ?? false,
-            isDocumentVerified: verification?.isDocumentVerified ?? false,
-            isConnected: true,
-          });
-        }
+        const u = buildUser();
+        if (u) setUser(u);
       }
 
       setIsLoading(false);
     };
 
     init();
-  }, []);
+  }, [buildUser]);
 
   const signIn = useCallback(async () => {
     setIsLoading(true);
@@ -87,14 +110,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const verification = await verifyRes.json();
 
           if (verification.isValid) {
-            setUser({
-              walletAddress: verification.address,
-              username: MiniKit.user?.username,
-              profilePictureUrl: MiniKit.user?.profilePictureUrl,
-              isOrbVerified: MiniKit.user?.verificationStatus?.isOrbVerified ?? false,
-              isDocumentVerified: MiniKit.user?.verificationStatus?.isDocumentVerified ?? false,
-              isConnected: true,
-            });
+            // After walletAuth, username and profilePictureUrl get populated
+            await new Promise((r) => setTimeout(r, 300));
+            const u = buildUser();
+            if (u) {
+              u.walletAddress = verification.address;
+              setUser(u);
+            }
           }
         }
       }
@@ -102,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Sign in failed:", e);
     }
     setIsLoading(false);
-  }, []);
+  }, [buildUser]);
 
   const signOut = useCallback(() => {
     setUser(null);
