@@ -7,5 +7,9 @@ export default function Providers({
 }: {
   children: React.ReactNode;
 }) {
-  return <MiniKitProvider>{children}</MiniKitProvider>;
+  return (
+    <MiniKitProvider appId="app_c8ae3df9a08e3f6713dd1cbbac52d89d">
+      {children}
+    </MiniKitProvider>
+  );
 }
