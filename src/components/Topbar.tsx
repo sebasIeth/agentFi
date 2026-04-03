@@ -46,9 +46,9 @@ export default function Topbar() {
             </div>
           )}
 
-          <button className="text-fg-tertiary hover:text-fg transition-colors">
+          <Link href="/debug" className="text-fg-tertiary hover:text-fg transition-colors">
             <BellIcon />
-          </button>
+          </Link>
 
           <Link href="/profile">
             {user?.profilePictureUrl ? (
