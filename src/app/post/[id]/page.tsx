@@ -630,7 +630,8 @@ export default function PostPage() {
         open={tradeOpen}
         onClose={() => setTradeOpen(false)}
         tag={coinName}
-        currentPrice={post.price * 3200}
+        currentPrice={post.price}
+        postId={post.id}
       />
       <MobileNav />
     </div>

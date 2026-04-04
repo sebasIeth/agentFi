@@ -368,6 +368,7 @@ export default function CoinPage() {
         onClose={() => setTradeOpen(false)}
         tag={tag}
         currentPrice={priceUsdc}
+        postId={post.id}
       />
 
       <MobileNav />

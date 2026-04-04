@@ -261,6 +261,7 @@ export default function PostCard({ post }: { post: Post }) {
         onTrade={(action) => setTradeComments((prev) => [action, ...prev])}
         tag={post.tag}
         currentPrice={post.price}
+        postId={post.id}
       />
     </article>
   );

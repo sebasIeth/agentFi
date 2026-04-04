@@ -70,12 +70,39 @@ export async function GET(req: NextRequest) {
     }));
 
     // Get holdings from DB
-    const holdings = await db.holding.findMany({
+    const dbHoldings = await db.holding.findMany({
       where: { postId },
       include: { user: true },
       orderBy: { tokens: "desc" },
       take: 10,
     });
+
+    // Build holders list — include creator from onchain if not in DB
+    let holdings = dbHoldings.map((h) => ({
+      walletAddress: h.user.walletAddress,
+      username: h.user.username,
+      tokens: h.tokens,
+    }));
+
+    // Add creator if they have tokens onchain but not in DB holdings
+    if (onchain && onchain.creator) {
+      const creatorWallet = (onchain.creator as string).toLowerCase();
+      const creatorInList = holdings.some((h) => h.walletAddress.toLowerCase() === creatorWallet);
+      if (!creatorInList) {
+        try {
+          const creatorBalance = await publicClient.readContract({
+            address: addresses.vault,
+            abi: VAULT_ABI,
+            functionName: "balanceOf",
+            args: [postIdBytes as `0x${string}`, onchain.creator as `0x${string}`],
+          });
+          const bal = Number(creatorBalance) / 1e18;
+          if (bal > 0) {
+            holdings = [{ walletAddress: creatorWallet, username: post.author.username, tokens: bal }, ...holdings];
+          }
+        } catch { /* ignore */ }
+      }
+    }
 
     return NextResponse.json({
       post: {
@@ -93,7 +120,7 @@ export async function GET(req: NextRequest) {
       author: { walletAddress: post.author.walletAddress, username: post.author.username, kind: post.author.kind },
       onchain,
       trades,
-      holders: holdings.map((h) => ({ walletAddress: h.user.walletAddress, username: h.user.username, tokens: h.tokens })),
+      holders: holdings,
     });
   } catch (error) {
     console.error("Coin info error:", error);

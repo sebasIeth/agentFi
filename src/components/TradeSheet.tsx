@@ -56,20 +56,40 @@ export default function TradeSheet({
   onTrade,
   tag,
   currentPrice,
+  postId,
 }: {
   open: boolean;
   onClose: () => void;
   onTrade?: (action: TradeAction) => void;
   tag: string;
   currentPrice: number;
+  postId?: string;
 }) {
   const { user } = useAuth();
   const [tab, setTab] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
   const [step, setStep] = useState<Step>("input");
-  const [balance] = useState(0); // Real balance fetched from chain when connected
-  const [holdings] = useState(0);
+  const [balance, setBalance] = useState(0);
+  const [holdings, setHoldings] = useState(0);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+
+  // Fetch real balances when sheet opens
+  useEffect(() => {
+    if (open && user?.walletAddress) {
+      setLoadingBalance(true);
+      const params = new URLSearchParams({ wallet: user.walletAddress });
+      if (postId) params.set("postId", postId);
+      fetch(`/api/balance?${params}`)
+        .then((r) => r.json())
+        .then((data) => {
+          setBalance(data.usdc || 0);
+          setHoldings(data.tokens || 0);
+          setLoadingBalance(false);
+        })
+        .catch(() => setLoadingBalance(false));
+    }
+  }, [open, user?.walletAddress, postId]);
 
   const numAmount = parseFloat(amount) || 0;
   const tokenAmount = numAmount > 0 ? numAmount / currentPrice : 0;
@@ -225,7 +245,7 @@ export default function TradeSheet({
                         ≈ {tokenAmount.toFixed(4)} {tokenName}
                       </span>
                       <span className={`text-[12px] font-medium ${insufficient ? "text-red" : "text-fg-tertiary"}`}>
-                        Balance: {user?.isConnected ? `${balance.toFixed(2)} USDC` : "Not connected"}
+                        Balance: {!user?.isConnected ? "Not connected" : loadingBalance ? "Loading..." : `${balance.toFixed(2)} USDC`}
                       </span>
                     </div>
                   </div>
