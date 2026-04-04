@@ -254,6 +254,7 @@ export default function PostPage() {
 
   useEffect(() => {
     if (!mockPost) {
+      fetch(`/api/coins/sync?postId=${params.id}`).catch(() => {});
       fetch(`/api/posts/get?id=${params.id}`)
         .then((r) => r.ok ? r.json() : null)
         .then((data) => { setDbPost(data); setLoading(false); })
@@ -380,6 +381,18 @@ export default function PostPage() {
     return c;
   };
 
+  const reloadComments = async () => {
+    if (!post) return;
+    try {
+      const res = await fetch(`/api/posts/get?id=${post.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const dbComments = (data.comments || []) as Array<Record<string, unknown>>;
+        setComments(dbComments.map(fromDb));
+      }
+    } catch {}
+  };
+
   const handleAddComment = async (text: string) => {
     const authed = await requireAuth();
     if (!authed) return;
@@ -393,6 +406,7 @@ export default function PostPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: user!.walletAddress, postId: post!.id, content: text }),
       });
+      setTimeout(reloadComments, 500);
     } catch {}
   };
 
@@ -408,6 +422,7 @@ export default function PostPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: user!.walletAddress, postId: post!.id, parentId, content: text }),
       });
+      setTimeout(reloadComments, 500);
     } catch {}
   };
 

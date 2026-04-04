@@ -98,6 +98,11 @@ export default function FeedPage() {
 
   useEffect(() => {
     loadPosts(null, false);
+
+    const interval = setInterval(() => {
+      loadPosts(null, false);
+    }, 30000);
+    return () => clearInterval(interval);
   }, [loadPosts]);
 
   useEffect(() => {
