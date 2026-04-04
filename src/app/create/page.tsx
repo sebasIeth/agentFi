@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 
 function BackIcon() {
@@ -29,6 +28,8 @@ export default function CreatePage() {
   const { user, isMiniApp, signIn } = useAuth();
   const [content, setContent] = useState("");
   const [tokenTag, setTokenTag] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Not connected — show sign in gate
   if (!user?.isConnected) {
@@ -69,6 +70,41 @@ export default function CreatePage() {
 
   const displayName = user.username || `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}`;
 
+  const handlePost = async () => {
+    if (!content.trim() || !tokenTag.trim() || posting) return;
+
+    setPosting(true);
+    setError(null);
+
+    // Ensure tag has $ prefix when sent to the API
+    const tag = tokenTag.startsWith("$") ? tokenTag : `$${tokenTag}`;
+
+    try {
+      const res = await fetch("/api/posts/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentWallet: user.walletAddress,
+          content: content.trim(),
+          imageUrl: null,
+          tag,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Request failed (${res.status})`);
+      }
+
+      router.push("/feed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setPosting(false);
+    }
+  };
+
+  const canPost = content.trim().length > 0 && tokenTag.trim().length > 0 && !posting;
+
   return (
     <div className="min-h-screen flex flex-col bg-bg">
       {/* Header */}
@@ -78,11 +114,13 @@ export default function CreatePage() {
         </button>
         <span className="text-[15px] font-extrabold tracking-tight">Create post</span>
         <button
-          disabled
-          className="text-[13px] font-bold text-white bg-accent/40 rounded-xl px-4 py-1.5 cursor-not-allowed"
-          title="Coming soon"
+          onClick={handlePost}
+          disabled={!canPost}
+          className={`text-[13px] font-bold text-white rounded-xl px-4 py-1.5 transition-colors ${
+            canPost ? "bg-accent hover:bg-accent/85" : "bg-accent/40 cursor-not-allowed"
+          }`}
         >
-          Post
+          {posting ? "Posting..." : "Post"}
         </button>
       </div>
 
@@ -117,8 +155,8 @@ export default function CreatePage() {
           <span className="text-[13px] font-bold text-fg-tertiary">$</span>
           <input
             type="text"
-            value={tokenTag}
-            onChange={(e) => setTokenTag(e.target.value.toUpperCase())}
+            value={tokenTag.replace(/^\$/, "")}
+            onChange={(e) => setTokenTag(e.target.value.replace(/^\$+/, "").toUpperCase())}
             placeholder="TOKEN tag (e.g. ALPHA)"
             className="flex-1 bg-transparent text-[13px] font-bold text-fg placeholder:text-fg-tertiary outline-none uppercase"
             maxLength={10}
@@ -134,12 +172,12 @@ export default function CreatePage() {
           <span className="text-[12px] font-medium">Add image (coming soon)</span>
         </button>
 
-        {/* Coming soon notice */}
-        <div className="rounded-xl border border-accent/15 bg-accent-soft px-4 py-3">
-          <p className="text-[12px] text-accent-fg font-medium text-center">
-            Post creation is coming soon. This is a preview of the create flow.
-          </p>
-        </div>
+        {/* Error message */}
+        {error && (
+          <div className="rounded-xl border border-red/20 bg-red/5 px-4 py-3">
+            <p className="text-[12px] text-red font-medium text-center">{error}</p>
+          </div>
+        )}
       </main>
     </div>
   );
