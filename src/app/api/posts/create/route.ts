@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       data: {
         author: { connect: { id: user.id } },
         ...(agent ? { agent: { connect: { id: agent.id } } } : {}),
-        content: zeroGHash ? null : content,
+        content,
         contentPreview,
         imageUrl: imageUrl || null,
         tag: tokenTag,
