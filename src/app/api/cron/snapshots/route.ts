@@ -2,79 +2,71 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { publicClient, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 
-// Call this every 5 minutes (via Vercel Cron or external)
 // GET /api/cron/snapshots
+// Only syncs posts with recent activity (last 24h trades)
 export async function GET() {
   try {
     const { vault: vaultAddress } = getContractAddresses();
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Get all posts with a contentHash (required for Vault lookups)
+    // Get posts that had trades recently OR were created recently
     const posts = await db.post.findMany({
-      where: { contentHash: { not: null }, coinAddress: { not: null } },
-      select: { id: true, coinAddress: true, contentHash: true },
+      where: {
+        contentHash: { not: null },
+        OR: [
+          { trades: { some: { createdAt: { gte: oneDayAgo } } } },
+          { createdAt: { gte: oneDayAgo } },
+        ],
+      },
+      select: { id: true, coinAddress: true, contentHash: true, price: true },
     });
 
     if (posts.length === 0) {
-      return NextResponse.json({ message: "No coins to snapshot", count: 0 });
+      return NextResponse.json({ message: "No active coins", count: 0 });
     }
 
-    const snapshots = [];
+    let count = 0;
 
     for (const post of posts) {
-      if (!post.coinAddress || !post.contentHash) continue;
+      if (!post.contentHash) continue;
 
       try {
-        const postId = post.contentHash as `0x${string}`;
-
+        const poolId = post.contentHash as `0x${string}`;
         const [price, marketCap, holderCount] = await Promise.all([
-          publicClient.readContract({
-            address: vaultAddress,
-            abi: VAULT_ABI,
-            functionName: "getPrice",
-            args: [postId],
-          }),
-          publicClient.readContract({
-            address: vaultAddress,
-            abi: VAULT_ABI,
-            functionName: "getMarketCap",
-            args: [postId],
-          }),
-          publicClient.readContract({
-            address: vaultAddress,
-            abi: VAULT_ABI,
-            functionName: "holderCount",
-            args: [postId],
-          }),
+          publicClient.readContract({ address: vaultAddress, abi: VAULT_ABI, functionName: "getPrice", args: [poolId] }),
+          publicClient.readContract({ address: vaultAddress, abi: VAULT_ABI, functionName: "getMarketCap", args: [poolId] }),
+          publicClient.readContract({ address: vaultAddress, abi: VAULT_ABI, functionName: "holderCount", args: [poolId] }),
         ]);
 
-        const snapshot = await db.coinSnapshot.create({
+        const newPrice = Number(price) / 1e6;
+        const oldPrice = post.price || 0;
+        const priceChange = oldPrice > 0 && newPrice !== oldPrice
+          ? ((newPrice - oldPrice) / oldPrice) * 100 : 0;
+
+        await db.coinSnapshot.create({
           data: {
-            coinAddress: post.coinAddress,
+            coinAddress: post.coinAddress || vaultAddress,
             postId: post.id,
-            price: Number(price),
-            marketCap: Number(marketCap),
+            price: newPrice,
+            marketCap: Number(marketCap) / 1e6,
             holders: Number(holderCount),
           },
         });
 
-        // Update post price
         await db.post.update({
           where: { id: post.id },
-          data: { price: Number(price) },
+          data: { price: newPrice, priceChange, holders: Number(holderCount) },
         });
 
-        snapshots.push(snapshot);
+        count++;
       } catch (err) {
-        console.error(`Snapshot failed for ${post.coinAddress}:`, err);
+        console.error(`Snapshot failed for ${post.id}:`, err);
       }
     }
 
-    return NextResponse.json({ message: "Snapshots taken", count: snapshots.length });
+    return NextResponse.json({ message: "Snapshots taken", count });
   } catch (error) {
     console.error("Snapshot cron error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
