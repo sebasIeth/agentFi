@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { getAvatarUrl } from "@/lib/avatar";
 
 function BackIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 12H5" />
-      <polyline points="12 19 5 12 12 5" />
+      <path d="M19 12H5" /><polyline points="12 19 5 12 12 5" />
     </svg>
   );
 }
@@ -16,9 +16,15 @@ function BackIcon() {
 function ImageIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <polyline points="21 15 16 10 5 21" />
+      <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   );
 }
@@ -30,33 +36,28 @@ export default function CreatePage() {
   const [tokenTag, setTokenTag] = useState("");
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!user?.isConnected) {
     return (
       <div className="min-h-screen flex flex-col bg-bg">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors">
-            <BackIcon />
-          </button>
+          <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors"><BackIcon /></button>
           <span className="text-[15px] font-extrabold tracking-tight">Create post</span>
           <div className="w-5" />
         </div>
         <main className="flex-1 flex flex-col items-center justify-center px-4 pb-24">
           <div className="w-16 h-16 rounded-full bg-bg-active flex items-center justify-center mb-4">
             <svg className="w-7 h-7 text-fg-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
             </svg>
           </div>
           <h2 className="text-[18px] font-extrabold mb-1">Sign in to post</h2>
-          <p className="text-[13px] text-fg-tertiary text-center mb-5 max-w-[260px]">
-            Connect your World wallet to create posts.
-          </p>
+          <p className="text-[13px] text-fg-tertiary text-center mb-5 max-w-[260px]">Connect your World wallet to create posts.</p>
           {isMiniApp ? (
-            <button
-              onClick={signIn}
-              className="w-full max-w-[280px] text-[14px] font-bold text-white bg-accent hover:bg-accent/85 rounded-xl py-3 transition-colors"
-            >
+            <button onClick={signIn} className="w-full max-w-[280px] text-[14px] font-bold text-white bg-accent hover:bg-accent/85 rounded-xl py-3 transition-colors">
               Sign in with World ID
             </button>
           ) : (
@@ -68,26 +69,39 @@ export default function CreatePage() {
   }
 
   const displayName = user.username || `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}`;
+  const avatarUrl = user.profilePictureUrl || getAvatarUrl(user.walletAddress);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { setError("Image too large. Max 10MB."); return; }
+    if (!["image/jpeg", "image/png", "image/gif", "image/webp"].includes(file.type)) { setError("Use JPG, PNG, GIF or WebP."); return; }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setError(null);
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handlePost = async () => {
     if (!content.trim() || !tokenTag.trim() || posting) return;
-
     setPosting(true);
     setError(null);
 
     const tag = tokenTag.startsWith("$") ? tokenTag : `$${tokenTag}`;
 
     try {
-      const res = await fetch("/api/posts/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentWallet: user.walletAddress,
-          content: content.trim(),
-          imageUrl: null,
-          tag,
-        }),
-      });
+      const formData = new FormData();
+      formData.append("agentWallet", user.walletAddress);
+      formData.append("text", content.trim());
+      formData.append("tag", tag);
+      if (imageFile) formData.append("image", imageFile);
+
+      const res = await fetch("/api/posts/create", { method: "POST", body: formData });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -106,9 +120,7 @@ export default function CreatePage() {
   return (
     <div className="min-h-screen flex flex-col bg-bg">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors">
-          <BackIcon />
-        </button>
+        <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors"><BackIcon /></button>
         <span className="text-[15px] font-extrabold tracking-tight">Create post</span>
         <button
           onClick={handlePost}
@@ -123,17 +135,10 @@ export default function CreatePage() {
 
       <main className="flex-1 w-full max-w-[480px] mx-auto px-4 py-5 flex flex-col gap-4">
         <div className="flex items-center gap-3">
-          {user.profilePictureUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.profilePictureUrl} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-bg-active flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 text-fg-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-          )}
+          <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+          </div>
           <span className="text-[14px] font-bold">{displayName}</span>
         </div>
 
@@ -144,6 +149,19 @@ export default function CreatePage() {
           rows={5}
           className="w-full bg-transparent text-[15px] text-fg placeholder:text-fg-tertiary resize-none outline-none leading-relaxed"
         />
+
+        {imagePreview && (
+          <div className="relative rounded-xl overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imagePreview} alt="" className="w-full max-h-[300px] object-cover" />
+            <button
+              onClick={removeImage}
+              className="absolute top-2 right-2 w-7 h-7 rounded-full bg-fg/60 text-white flex items-center justify-center backdrop-blur-sm"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        )}
 
         <div className="rounded-xl border border-border bg-bg-elevated px-4 py-3 flex items-center gap-2">
           <span className="text-[13px] font-bold text-fg-tertiary">$</span>
@@ -157,13 +175,23 @@ export default function CreatePage() {
           />
         </div>
 
-        <button
-          disabled
-          className="w-full rounded-xl border border-dashed border-border bg-bg-elevated py-8 flex flex-col items-center gap-2 text-fg-tertiary cursor-not-allowed"
-        >
-          <ImageIcon />
-          <span className="text-[12px] font-medium">Add image</span>
-        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          onChange={handleImageSelect}
+          className="hidden"
+        />
+
+        {!imagePreview && (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full rounded-xl border border-dashed border-border bg-bg-elevated py-8 flex flex-col items-center gap-2 text-fg-tertiary hover:border-accent/40 hover:text-accent transition-colors"
+          >
+            <ImageIcon />
+            <span className="text-[12px] font-medium">Add image</span>
+          </button>
+        )}
 
         {error && (
           <div className="rounded-xl border border-red/20 bg-red/5 px-4 py-3">

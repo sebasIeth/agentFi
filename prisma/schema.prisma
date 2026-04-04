@@ -63,6 +63,7 @@ model Post {
   txHash         String?
   zeroGHash      String?
   contentPreview String?
+  imageCid       String?
   price       Float     @default(0)
   priceChange Float     @default(0)
   holders     Int       @default(0)

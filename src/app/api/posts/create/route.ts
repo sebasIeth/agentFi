@@ -3,16 +3,41 @@ import { db } from "@/lib/db";
 import { keccak256, toHex } from "viem";
 import { publicClient, getBackendWallet, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 import { uploadToZeroG } from "@/lib/zerog";
+import { uploadImage } from "@/lib/pinata";
 
 export async function POST(req: NextRequest) {
   try {
-    const { agentWallet, content, imageUrl, tag } = await req.json();
+    const contentType = req.headers.get("content-type") || "";
+    let agentWallet: string;
+    let text: string;
+    let tag: string;
+    let imageBuffer: Buffer | null = null;
+    let imageFilename = "";
+    let imageMimeType = "";
 
-    if (!agentWallet || !content || !tag) {
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      agentWallet = formData.get("agentWallet") as string;
+      text = formData.get("text") as string || formData.get("content") as string;
+      tag = formData.get("tag") as string;
+      const imageFile = formData.get("image") as File | null;
+      if (imageFile && imageFile.size > 0) {
+        imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+        imageFilename = imageFile.name;
+        imageMimeType = imageFile.type;
+      }
+    } else {
+      const body = await req.json();
+      agentWallet = body.agentWallet;
+      text = body.content || body.text;
+      tag = body.tag;
+    }
+
+    if (!agentWallet || !text || !tag) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    if (agentWallet && !/^0x[a-fA-F0-9]{40}$/.test(agentWallet)) {
+    if (!/^0x[a-fA-F0-9]{40}$/.test(agentWallet)) {
       return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
     }
 
@@ -24,25 +49,47 @@ export async function POST(req: NextRequest) {
 
     const agent = await db.agent.findFirst({ where: { ownerId: user.id } });
     const tokenTag = tag.startsWith("$") ? tag : `$${tag}`;
-    const contentPreview = content.slice(0, 280);
+    const contentPreview = text.slice(0, 280);
+
+    let imageCid: string | null = null;
+    let imageUrl: string | null = null;
+    let imageData: { cid: string; gateway: string; mimeType: string; size: number } | null = null;
+
+    if (imageBuffer) {
+      try {
+        const result = await uploadImage(imageBuffer, imageFilename, imageMimeType);
+        imageCid = result.cid;
+        imageUrl = result.gatewayUrl;
+        imageData = { cid: result.cid, gateway: result.gatewayUrl, mimeType: imageMimeType, size: result.size };
+      } catch {}
+    }
+
+    const contentObject = {
+      version: "1.0",
+      text,
+      image: imageData,
+      agent: agentWallet,
+      timestamp: new Date().toISOString(),
+    };
 
     let zeroGHash: string | null = null;
     let contentHash: string;
 
     try {
-      zeroGHash = await uploadToZeroG(content);
+      zeroGHash = await uploadToZeroG(JSON.stringify(contentObject));
       contentHash = zeroGHash;
     } catch {
-      contentHash = keccak256(toHex(content));
+      contentHash = keccak256(toHex(JSON.stringify(contentObject)));
     }
 
     const post = await db.post.create({
       data: {
         author: { connect: { id: user.id } },
         ...(agent ? { agent: { connect: { id: agent.id } } } : {}),
-        content: zeroGHash ? null : content,
+        content: zeroGHash ? null : text,
         contentPreview,
-        imageUrl: imageUrl || null,
+        imageUrl,
+        imageCid,
         tag: tokenTag,
         contentHash,
         zeroGHash,
@@ -53,7 +100,6 @@ export async function POST(req: NextRequest) {
     });
 
     const addresses = getContractAddresses();
-    const factoryAddress = process.env.POST_FACTORY_V2_ADDRESS || addresses.postFactory;
 
     if (addresses.vault) {
       try {
@@ -92,12 +138,12 @@ export async function POST(req: NextRequest) {
           post: { ...post, txHash, coinAddress: addresses.vault },
           onchain: true,
           zeroG: !!zeroGHash,
-          poolId: poolIdBytes,
+          ipfs: !!imageCid,
         });
       } catch {}
     }
 
-    return NextResponse.json({ post, onchain: false, zeroG: !!zeroGHash });
+    return NextResponse.json({ post, onchain: false, zeroG: !!zeroGHash, ipfs: !!imageCid });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
