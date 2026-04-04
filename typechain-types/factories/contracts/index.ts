@@ -2,6 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export { AgentFiVault__factory } from "./AgentFiVault__factory";
+export { AgentFiVaultV2__factory } from "./AgentFiVaultV2__factory";
 export { AgentRegistry__factory } from "./AgentRegistry__factory";
 export { PostCoin__factory } from "./PostCoin__factory";
 export { PostFactory__factory } from "./PostFactory__factory";

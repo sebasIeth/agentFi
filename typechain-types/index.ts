@@ -22,6 +22,8 @@ export type { ReentrancyGuard } from "./@openzeppelin/contracts/utils/Reentrancy
 export { ReentrancyGuard__factory } from "./factories/@openzeppelin/contracts/utils/ReentrancyGuard__factory";
 export type { AgentFiVault } from "./contracts/AgentFiVault";
 export { AgentFiVault__factory } from "./factories/contracts/AgentFiVault__factory";
+export type { AgentFiVaultV2 } from "./contracts/AgentFiVaultV2";
+export { AgentFiVaultV2__factory } from "./factories/contracts/AgentFiVaultV2__factory";
 export type { AgentRegistry } from "./contracts/AgentRegistry";
 export { AgentRegistry__factory } from "./factories/contracts/AgentRegistry__factory";
 export type { PostCoin } from "./contracts/PostCoin";

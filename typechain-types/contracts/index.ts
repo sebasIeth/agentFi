@@ -2,6 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { AgentFiVault } from "./AgentFiVault";
+export type { AgentFiVaultV2 } from "./AgentFiVaultV2";
 export type { AgentRegistry } from "./AgentRegistry";
 export type { PostCoin } from "./PostCoin";
 export type { PostFactory } from "./PostFactory";

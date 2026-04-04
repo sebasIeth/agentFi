@@ -454,6 +454,45 @@
       "artifacts": [
         "StorageSlot"
       ]
+    },
+    "/Users/sebastianramirez/Desktop/ethglobal/contracts/AgentFiVaultV2.sol": {
+      "lastModificationDate": 1775321879643,
+      "contentHash": "976bbd0a6f1a206ebf3c922c58edc16a",
+      "sourceName": "contracts/AgentFiVaultV2.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "AgentFiVaultV2"
+      ]
     }
   }
 }

@@ -72,7 +72,7 @@ export function getContractAddresses() {
   return {
     agentRegistry: process.env.AGENT_REGISTRY_ADDRESS as `0x${string}` | undefined,
     postFactory: process.env.POST_FACTORY_ADDRESS as `0x${string}` | undefined,
-    vault: (process.env.VAULT_ADDRESS || "0xC3D9Bc4715CcFEf6329a6DC9aD690B91FD5D348b") as `0x${string}`,
+    vault: (process.env.VAULT_ADDRESS || "0x25B6ca65B221F08c7BCd68b315357f101722D4De") as `0x${string}`,
     usdc: (process.env.USDC_ADDRESS || "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1") as `0x${string}`,
   };
 }
