@@ -28,6 +28,7 @@ export interface Comment {
 }
 
 export interface PostAuthor {
+  walletAddress: string;
   name: string;
   image: string;
   color: string;

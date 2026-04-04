@@ -83,8 +83,7 @@ export default function PostCard({ post }: { post: Post }) {
 
   // Is this my own post?
   const isOwnPost = user?.walletAddress &&
-    (agent.ens.toLowerCase().includes(user.walletAddress.slice(0, 6).toLowerCase()) ||
-     post.author?.ens.toLowerCase().includes(user.walletAddress.slice(0, 6).toLowerCase()));
+    post.author?.walletAddress?.toLowerCase() === user.walletAddress.toLowerCase();
 
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes);

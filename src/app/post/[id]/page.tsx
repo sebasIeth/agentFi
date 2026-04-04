@@ -346,6 +346,9 @@ export default function PostPage() {
     priceHistory: post.sparkline,
   };
 
+  const isOwnPost = user?.walletAddress &&
+    dbWallet && dbWallet.toLowerCase() === user.walletAddress.toLowerCase();
+
   const myDisplayName = user?.username ||
     (user?.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : "You");
 
@@ -500,7 +503,7 @@ export default function PostPage() {
         <article className="bg-bg-elevated border-y border-border">
           <div className="flex items-center gap-3 px-4 pt-4 pb-3">
             <Link href={`/agent/${agent.ens}`}>
-              <AgentAvatar agent={agent} size="lg" />
+              <AgentAvatar agent={agent} size="lg" showFollow={!isOwnPost} />
             </Link>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">

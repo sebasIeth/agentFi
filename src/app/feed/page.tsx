@@ -26,6 +26,7 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
     id: dbPost.id as string,
     agentId: (agent?.id || author?.id || "0") as string,
     author: {
+      walletAddress: wallet.toLowerCase(),
       name: authorName,
       image: (author?.profilePictureUrl as string) || getAvatarUrl(wallet),
       color: "#378ADD",
