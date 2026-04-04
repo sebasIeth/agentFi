@@ -73,6 +73,8 @@ export default function TradeSheet({
   const [step, setStep] = useState<Step>("input");
   const [balance, setBalance] = useState(0);
   const [holdings, setHoldings] = useState(0);
+  const [realLiquidity, setRealLiquidity] = useState(0);
+  const [sellableUsdc, setSellableUsdc] = useState(0);
   const [loadingBalance, setLoadingBalance] = useState(false);
 
   // Fetch real balances when sheet opens
@@ -86,6 +88,8 @@ export default function TradeSheet({
         .then((data) => {
           setBalance(data.usdc || 0);
           setHoldings(data.tokens || 0);
+          setRealLiquidity(data.realLiquidity || 0);
+          setSellableUsdc(data.sellableUsdc || 0);
           setLoadingBalance(false);
         })
         .catch(() => setLoadingBalance(false));
@@ -95,7 +99,9 @@ export default function TradeSheet({
   const numAmount = parseFloat(amount) || 0;
   const tokenAmount = numAmount > 0 ? numAmount / currentPrice : 0;
   const insufficient = tab === "buy" ? numAmount > balance : tokenAmount > holdings;
-  const canSubmit = numAmount > 0 && !insufficient;
+  const noLiquidity = tab === "sell" && realLiquidity <= 0;
+  const exceedsLiquidity = tab === "sell" && numAmount > 0 && numAmount > sellableUsdc && sellableUsdc > 0;
+  const canSubmit = numAmount > 0 && !insufficient && !noLiquidity && !exceedsLiquidity;
 
   // Reset on open
   useEffect(() => {
@@ -381,11 +387,26 @@ export default function TradeSheet({
                 </div>
 
                 {/* Token holdings if selling */}
-                {tab === "sell" && holdings > 0 && (
-                  <div className="px-4 mb-2">
+                {tab === "sell" && (
+                  <div className="px-4 mb-2 flex flex-col gap-1">
+                    {holdings > 0 && (
+                      <span className="text-[12px] text-fg-tertiary">
+                        You hold <strong className="text-fg">{holdings.toFixed(2)}</strong> {tokenName}
+                      </span>
+                    )}
                     <span className="text-[12px] text-fg-tertiary">
-                      You hold <strong className="text-fg">{holdings.toFixed(4)}</strong> {tokenName} (≈ ${(holdings * currentPrice).toFixed(2)})
+                      Available liquidity: <strong className={realLiquidity > 0 ? "text-green" : "text-red"}>${realLiquidity.toFixed(4)}</strong> USDC
                     </span>
+                    {noLiquidity && (
+                      <span className="text-[11px] text-red font-semibold">
+                        No one has bought yet — nothing to sell into
+                      </span>
+                    )}
+                    {exceedsLiquidity && (
+                      <span className="text-[11px] text-red font-semibold">
+                        Max you can sell: ~${sellableUsdc.toFixed(4)} USDC
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -433,7 +454,11 @@ export default function TradeSheet({
                           : "text-fg-tertiary bg-bg-hover cursor-not-allowed"
                       }`}
                     >
-                      {insufficient
+                      {noLiquidity
+                        ? "No liquidity to sell"
+                        : exceedsLiquidity
+                        ? "Exceeds available liquidity"
+                        : insufficient
                         ? "Insufficient balance"
                         : numAmount > 0
                         ? `Review ${tab === "buy" ? "purchase" : "sale"}`
