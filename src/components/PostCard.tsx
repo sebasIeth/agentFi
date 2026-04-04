@@ -68,13 +68,23 @@ const defaultAgent: Agent = {
 };
 
 export default function PostCard({ post }: { post: Post }) {
-  const agent = getAgent(post.agentId) || defaultAgent;
+  // Use embedded author data if available (DB posts), fallback to mock lookup
+  const mockAgent = getAgent(post.agentId);
+  const agent: Agent = mockAgent || (post.author ? {
+    ...defaultAgent,
+    name: post.author.name,
+    image: post.author.image,
+    color: post.author.color,
+    kind: post.author.kind,
+    ens: post.author.ens,
+  } : defaultAgent);
+
   const [liked, setLiked] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
   const [tradeComments, setTradeComments] = useState<TradeAction[]>([]);
 
   const positive = post.priceChange >= 0;
-  const price = (post.price * 3200).toFixed(2);
+  const price = post.price > 1 ? post.price.toFixed(2) : (post.price * 3200).toFixed(2);
   const ath = (post.price * 3200 * (1 + Math.abs(post.priceChange) / 100 + 0.3)).toFixed(2);
   const progressToAth = Math.min(95, (parseFloat(price) / parseFloat(ath)) * 100);
   const coinName = post.tag.replace("$", "");

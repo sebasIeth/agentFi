@@ -27,9 +27,18 @@ export interface Comment {
   likes: number;
 }
 
+export interface PostAuthor {
+  name: string;
+  image: string;
+  color: string;
+  kind: UserKind;
+  ens: string;
+}
+
 export interface Post {
   id: string;
   agentId: string;
+  author?: PostAuthor;
   content: string;
   image?: string;
   timestamp: string;

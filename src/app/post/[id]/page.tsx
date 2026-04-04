@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Topbar from "@/components/Topbar";
 import MobileNav from "@/components/MobileNav";
-import CoinChart from "@/components/CoinChart";
-import OrbBadge from "@/components/OrbBadge";
 import KindBadge from "@/components/KindBadge";
-import AgentAvatar from "@/components/AgentAvatar";
 import TradeSheet from "@/components/TradeSheet";
+import AgentAvatar from "@/components/AgentAvatar";
+import CoinChart from "@/components/CoinChart";
 import { IconClock, IconHolders } from "@/components/Icons";
-import { getPost, getAgent, agents, Comment as MockComment } from "@/lib/mockData";
+import { getPost, getAgent, agents, Comment as MockComment, type UserKind } from "@/lib/mockData";
 
 interface LocalComment {
   id: string;
@@ -212,17 +211,79 @@ function countAll(list: LocalComment[]): number {
 export default function PostPage() {
   const params = useParams();
   const router = useRouter();
-  const post = getPost(params.id as string);
-  const agent = post ? getAgent(post.agentId) : undefined;
+  // Try mock first, then DB
+  const mockPost = getPost(params.id as string);
+  const mockAgent = mockPost ? getAgent(mockPost.agentId) : undefined;
 
-  const [comments, setComments] = useState<LocalComment[]>(() =>
-    post ? post.comments.map(fromMock) : []
-  );
+  const [dbPost, setDbPost] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(!mockPost);
+
+  useEffect(() => {
+    if (!mockPost) {
+      fetch(`/api/posts/get?id=${params.id}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { setDbPost(data); setLoading(false); })
+        .catch(() => setLoading(false));
+    }
+  }, [mockPost, params.id]);
+
+  // Build unified post data
+  const post = mockPost || (dbPost ? {
+    id: dbPost.id as string,
+    agentId: "0",
+    content: dbPost.content as string,
+    image: (dbPost.imageUrl as string) || undefined,
+    timestamp: "now",
+    price: (dbPost.price as number) || 0,
+    priceChange: (dbPost.priceChange as number) || 0,
+    holders: (dbPost.holders as number) || 0,
+    sparkline: [40, 45, 50, 48, 55, 60, 58, 65, 68],
+    tag: (dbPost.tag as string) || "$TOKEN",
+    likes: 0,
+    reposts: 0,
+    comments: ((dbPost.comments || []) as Array<Record<string, unknown>>).map((c) => ({
+      id: c.id as string,
+      agentId: (c.authorId as string) || "0",
+      content: c.content as string,
+      timestamp: "now",
+      likes: 0,
+    })),
+  } : null);
+
+  // Build author info
+  const dbAuthor = dbPost?.author as Record<string, unknown> | undefined;
+  const dbWallet = (dbAuthor?.walletAddress as string) || "";
+  const shortWallet = dbWallet ? `${dbWallet.slice(0, 6)}...${dbWallet.slice(-4)}` : "";
+  const authorName = mockAgent?.name || (dbAuthor?.username as string) || shortWallet || "Unknown";
+  const authorImage = mockAgent?.image || (dbAuthor?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${dbWallet}&backgroundColor=b6e3f4`;
+  const authorKind: UserKind = mockAgent?.kind || (dbAuthor?.kind as UserKind) || "human";
+  const authorEns = mockAgent?.ens || shortWallet || "unknown.eth";
+  const authorColor = mockAgent?.color || "#378ADD";
+
+  const [comments, setComments] = useState<LocalComment[]>([]);
   const [nextId, setNextId] = useState(100);
   const [focusStack, setFocusStack] = useState<string[]>([]);
   const [tradeOpen, setTradeOpen] = useState(false);
 
-  if (!post || !agent) {
+  // Init comments when post loads
+  useEffect(() => {
+    if (post && comments.length === 0) {
+      setComments(post.comments.map(fromMock));
+    }
+  }, [post]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Topbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!post) {
     return (
       <div className="min-h-screen flex flex-col">
         <Topbar />
@@ -237,11 +298,21 @@ export default function PostPage() {
   }
 
   const positive = post.priceChange >= 0;
-  const price = (post.price * 3200).toFixed(2);
-  const ath = (post.price * 3200 * (1 + Math.abs(post.priceChange) / 100 + 0.3)).toFixed(2);
+  const price = post.price > 1 ? post.price.toFixed(2) : (post.price * 3200).toFixed(2);
+  const ath = (parseFloat(price) * (1 + Math.abs(post.priceChange) / 100 + 0.3)).toFixed(2);
   const progressToAth = Math.min(95, (parseFloat(price) / parseFloat(ath)) * 100);
   const coinName = post.tag;
-  const holderAgents = agents.filter(a => a.id !== agent.id).slice(0, 5);
+  const holderAgents = agents.filter(a => a.id !== "0").slice(0, 5);
+
+  // Build agent-like object for the post author (used by AgentAvatar etc)
+  const agent = {
+    id: "0", kind: authorKind, name: authorName, ens: authorEns,
+    type: "user" as const, avatar: authorName.slice(0, 2).toUpperCase(),
+    image: authorImage, color: authorColor, verified: true,
+    postsToday: 0, totalPosts: 0, holders: post.holders,
+    totalVolume: "$0", coinPrice: post.price, priceChange: post.priceChange,
+    priceHistory: post.sparkline,
+  };
 
   const makeReply = (content: string): LocalComment => {
     const c: LocalComment = {

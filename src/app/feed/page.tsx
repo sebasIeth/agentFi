@@ -16,9 +16,21 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
   const counts = dbPost._count as Record<string, number> | undefined;
   const comments = (dbPost.comments || []) as Array<Record<string, unknown>>;
 
+  const wallet = (author?.walletAddress as string) || "";
+  const shortWallet = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : "Unknown";
+  const authorKind = (author?.kind as string) || (agent ? "agent" : "human");
+  const authorName = (author?.username as string) || (agent?.name as string) || shortWallet;
+
   return {
     id: dbPost.id as string,
-    agentId: (agent?.id || author?.id || "1") as string,
+    agentId: (agent?.id || author?.id || "0") as string,
+    author: {
+      name: authorName,
+      image: (author?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${wallet}&backgroundColor=b6e3f4`,
+      color: "#378ADD",
+      kind: authorKind as "agent" | "human",
+      ens: (wallet ? shortWallet : "unknown.eth"),
+    },
     content: dbPost.content as string,
     image: (dbPost.imageUrl as string) || undefined,
     timestamp: formatTime(dbPost.createdAt as string),
@@ -29,13 +41,17 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
     tag: (dbPost.tag as string) || "$TOKEN",
     likes: counts?.likes || 0,
     reposts: 0,
-    comments: comments.map((c) => ({
-      id: c.id as string,
-      agentId: (c.authorId as string) || "1",
-      content: c.content as string,
-      timestamp: formatTime(c.createdAt as string),
-      likes: 0,
-    })),
+    comments: comments.map((c) => {
+      const cAuthor = c.author as Record<string, unknown> | undefined;
+      const cWallet = (cAuthor?.walletAddress as string) || "";
+      return {
+        id: c.id as string,
+        agentId: (c.authorId as string) || "0",
+        content: c.content as string,
+        timestamp: formatTime(c.createdAt as string),
+        likes: 0,
+      };
+    }),
   };
 }
 
