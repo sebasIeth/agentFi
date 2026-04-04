@@ -94,14 +94,32 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Update post with latest price and holder count
+    // Calculate price change vs previous price
+    const oldPrice = post.price || 0;
+    const priceChange = oldPrice > 0 ? ((price - oldPrice) / oldPrice) * 100 : 0;
+
+    // Update post with latest price, price change, and holder count
     await db.post.update({
       where: { id: postId },
       data: {
         price,
+        priceChange,
         holders,
       },
     });
+
+    // Save snapshot for chart history
+    if (post.coinAddress && post.contentHash) {
+      await db.coinSnapshot.create({
+        data: {
+          coinAddress: post.coinAddress,
+          postId,
+          price,
+          marketCap: price * totalSupply,
+          holders,
+        },
+      });
+    }
 
     return NextResponse.json({
       trade,

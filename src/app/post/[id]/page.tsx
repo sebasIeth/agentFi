@@ -14,6 +14,17 @@ import { getPost, getAgent, agents, Comment as MockComment, type UserKind } from
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import { getAvatarUrl } from "@/lib/avatar";
 
+function formatTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 interface LocalComment {
   id: string;
   agentId: string | null;
@@ -51,7 +62,7 @@ function fromDb(c: Record<string, unknown>): LocalComment {
     username: (author?.username as string) || shortW,
     image: (author?.profilePictureUrl as string) || (wallet ? getAvatarUrl(wallet) : undefined),
     content: c.content as string,
-    timestamp: "now",
+    timestamp: c.createdAt ? formatTime(c.createdAt as string) : "now",
     likes: 0,
     liked: false,
     replies: [],
@@ -259,14 +270,14 @@ export default function PostPage() {
     agentId: "0",
     content: dbPost.content as string,
     image: (dbPost.imageUrl as string) || undefined,
-    timestamp: "now",
+    timestamp: formatTime(dbPost.createdAt as string),
     price: (dbPost.price as number) || 0,
     priceChange: (dbPost.priceChange as number) || 0,
     holders: (dbPost.holders as number) || 0,
     sparkline: [1, 1, 1, 1, 1, 1, 1, 1, 1],
     tag: (dbPost.tag as string) || "$TOKEN",
-    likes: 0,
-    reposts: 0,
+    likes: (dbPost._count as Record<string, number> | undefined)?.likes || 0,
+    reposts: (dbPost._count as Record<string, number> | undefined)?.trades || 0,
     comments: ((dbPost.comments || []) as Array<Record<string, unknown>>).map((c) => ({
       id: c.id as string,
       agentId: (c.authorId as string) || "0",

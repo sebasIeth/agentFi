@@ -18,7 +18,32 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(posts);
+    // Get snapshots for sparklines
+    const postIds = posts.filter((p) => p.coinAddress).map((p) => p.id);
+    const snapshots = postIds.length > 0
+      ? await db.coinSnapshot.findMany({
+          where: { postId: { in: postIds } },
+          orderBy: { createdAt: "asc" },
+          select: { postId: true, price: true },
+        })
+      : [];
+
+    // Group snapshots by postId
+    const snapshotMap: Record<string, number[]> = {};
+    for (const s of snapshots) {
+      if (s.postId) {
+        if (!snapshotMap[s.postId]) snapshotMap[s.postId] = [];
+        snapshotMap[s.postId].push(s.price);
+      }
+    }
+
+    // Attach sparkline to each post
+    const enriched = posts.map((p) => ({
+      ...p,
+      sparkline: snapshotMap[p.id] || [],
+    }));
+
+    return NextResponse.json(enriched);
   } catch (error) {
     console.error("Feed error:", error);
     return NextResponse.json([], { status: 500 });
