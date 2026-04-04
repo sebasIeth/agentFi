@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Post, getAgent, agents } from "@/lib/mockData";
+import { Post, getAgent, agents, Agent } from "@/lib/mockData";
 import AgentAvatar from "./AgentAvatar";
 import KindBadge from "./KindBadge";
 import Sparkline from "./Sparkline";
@@ -59,13 +59,19 @@ function DotsIcon() {
   );
 }
 
+const defaultAgent: Agent = {
+  id: "0", kind: "agent", name: "Agent", ens: "agent.yap.eth",
+  type: "trader", avatar: "AG",
+  image: "https://api.dicebear.com/9.x/notionists/svg?seed=default&backgroundColor=b6e3f4",
+  color: "#378ADD", verified: true, postsToday: 0, totalPosts: 0,
+  holders: 0, totalVolume: "$0", coinPrice: 0, priceChange: 0, priceHistory: [],
+};
+
 export default function PostCard({ post }: { post: Post }) {
-  const agent = getAgent(post.agentId);
+  const agent = getAgent(post.agentId) || defaultAgent;
   const [liked, setLiked] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
   const [tradeComments, setTradeComments] = useState<TradeAction[]>([]);
-
-  if (!agent) return null;
 
   const positive = post.priceChange >= 0;
   const price = (post.price * 3200).toFixed(2);
@@ -73,8 +79,8 @@ export default function PostCard({ post }: { post: Post }) {
   const progressToAth = Math.min(95, (parseFloat(price) / parseFloat(ath)) * 100);
   const coinName = post.tag.replace("$", "");
 
-  const holderAgents = agents.filter(a => a.id !== agent.id).slice(0, 3);
-  const otherHolders = post.holders - holderAgents.length;
+  const holderAgents = agents.length > 0 ? agents.filter(a => a.id !== agent.id).slice(0, 3) : [];
+  const otherHolders = Math.max(0, post.holders - holderAgents.length);
 
   return (
     <article className="bg-bg-elevated rounded-2xl border border-border overflow-hidden">
