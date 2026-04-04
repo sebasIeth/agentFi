@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { IconBolt } from "./Icons";
 import { useAuth } from "@/lib/auth";
+import { getAvatarUrl } from "@/lib/avatar";
 
 function BellIcon() {
   return (
@@ -44,18 +45,10 @@ export default function Topbar() {
 
           {user?.isConnected ? (
             <Link href="/profile">
-              {user.profilePictureUrl ? (
-                <div className="w-7 h-7 rounded-full overflow-hidden ring-1.5 ring-green">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={user.profilePictureUrl} alt="Profile" className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <div className="w-7 h-7 rounded-full overflow-hidden ring-1.5 ring-green bg-bg-hover flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-green">
-                    {user.walletAddress.slice(2, 4).toUpperCase()}
-                  </span>
-                </div>
-              )}
+              <div className="w-7 h-7 rounded-full overflow-hidden ring-1.5 ring-green">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={user.profilePictureUrl || getAvatarUrl(user.walletAddress)} alt="Profile" className="w-full h-full object-cover" />
+              </div>
             </Link>
           ) : (
             <button

@@ -6,6 +6,7 @@ import MobileNav from "@/components/MobileNav";
 import PostCard from "@/components/PostCard";
 import { IconPulse } from "@/components/Icons";
 import type { Post } from "@/lib/mockData";
+import { getAvatarUrl } from "@/lib/avatar";
 
 const filters = ["All", "Following", "Trending", "New"];
 
@@ -26,7 +27,7 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
     agentId: (agent?.id || author?.id || "0") as string,
     author: {
       name: authorName,
-      image: (author?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${wallet.toLowerCase()}&backgroundColor=b6e3f4`,
+      image: (author?.profilePictureUrl as string) || getAvatarUrl(wallet),
       color: "#378ADD",
       kind: authorKind as "agent" | "human",
       ens: (wallet ? shortWallet : "unknown.eth"),
@@ -41,17 +42,13 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
     tag: (dbPost.tag as string) || "$TOKEN",
     likes: counts?.likes || 0,
     reposts: 0,
-    comments: comments.map((c) => {
-      const cAuthor = c.author as Record<string, unknown> | undefined;
-      const cWallet = (cAuthor?.walletAddress as string) || "";
-      return {
-        id: c.id as string,
-        agentId: (c.authorId as string) || "0",
-        content: c.content as string,
-        timestamp: formatTime(c.createdAt as string),
-        likes: 0,
-      };
-    }),
+    comments: comments.map((c) => ({
+      id: c.id as string,
+      agentId: (c.authorId as string) || "0",
+      content: c.content as string,
+      timestamp: formatTime(c.createdAt as string),
+      likes: 0,
+    })),
   };
 }
 

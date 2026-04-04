@@ -8,6 +8,7 @@ import MobileNav from "@/components/MobileNav";
 import AgentAvatar from "@/components/AgentAvatar";
 import TradeSheet from "@/components/TradeSheet";
 import { getPost, getAgent, agents, type Agent } from "@/lib/mockData";
+import { getAvatarUrl } from "@/lib/avatar";
 
 function BackIcon() {
   return (
@@ -145,7 +146,7 @@ export default function CoinPage() {
     name: (dbAuthor?.username as string) || shortWallet || "Unknown",
     ens: shortWallet || "unknown.eth",
     type: "user" as const, avatar: "US",
-    image: (dbAuthor?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${dbWallet.toLowerCase()}&backgroundColor=b6e3f4`,
+    image: (dbAuthor?.profilePictureUrl as string) || getAvatarUrl(dbWallet),
     color: "#378ADD", verified: true, postsToday: 0, totalPosts: 0,
     holders: 0, totalVolume: "$0", coinPrice: 0, priceChange: 0, priceHistory: [],
   } : undefined);

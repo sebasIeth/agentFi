@@ -12,6 +12,7 @@ import CoinChart from "@/components/CoinChart";
 import { IconClock, IconHolders } from "@/components/Icons";
 import { getPost, getAgent, agents, Comment as MockComment, type UserKind } from "@/lib/mockData";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { getAvatarUrl } from "@/lib/avatar";
 
 interface LocalComment {
   id: string;
@@ -26,13 +27,32 @@ interface LocalComment {
 }
 
 function fromMock(c: MockComment): LocalComment {
+  const agent = getAgent(c.agentId);
   return {
     id: c.id,
     agentId: c.agentId,
-    username: getAgent(c.agentId)?.name || "Unknown",
+    username: agent?.name || "Unknown",
+    image: agent?.image,
     content: c.content,
     timestamp: c.timestamp,
     likes: c.likes,
+    liked: false,
+    replies: [],
+  };
+}
+
+function fromDb(c: Record<string, unknown>): LocalComment {
+  const author = c.author as Record<string, unknown> | undefined;
+  const wallet = (author?.walletAddress as string) || "";
+  const shortW = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : "Unknown";
+  return {
+    id: c.id as string,
+    agentId: null,
+    username: (author?.username as string) || shortW,
+    image: (author?.profilePictureUrl as string) || (wallet ? getAvatarUrl(wallet) : undefined),
+    content: c.content as string,
+    timestamp: "now",
+    likes: 0,
     liked: false,
     replies: [],
   };
@@ -61,7 +81,7 @@ function CommentAvatar({ comment, size = "md" }: { comment: LocalComment; size?:
     return <AgentAvatar agent={agent} size={size} showFollow={false} />;
   }
   const s = size === "sm" ? "w-7 h-7" : "w-9 h-9";
-  const imgSrc = comment.image || `https://api.dicebear.com/9.x/notionists/svg?seed=${comment.username}&backgroundColor=b6e3f4`;
+  const imgSrc = comment.image || getAvatarUrl(comment.username);
   return (
     <div className={`${s} rounded-full overflow-hidden bg-accent/10 shrink-0`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -261,7 +281,7 @@ export default function PostPage() {
   const dbWallet = (dbAuthor?.walletAddress as string) || "";
   const shortWallet = dbWallet ? `${dbWallet.slice(0, 6)}...${dbWallet.slice(-4)}` : "";
   const authorName = mockAgent?.name || (dbAuthor?.username as string) || shortWallet || "Unknown";
-  const authorImage = mockAgent?.image || (dbAuthor?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${dbWallet.toLowerCase()}&backgroundColor=b6e3f4`;
+  const authorImage = mockAgent?.image || (dbAuthor?.profilePictureUrl as string) || getAvatarUrl(dbWallet);
   const authorKind: UserKind = mockAgent?.kind || (dbAuthor?.kind as UserKind) || "human";
   const authorEns = mockAgent?.ens || shortWallet || "unknown.eth";
   const authorColor = mockAgent?.color || "#378ADD";
@@ -274,9 +294,15 @@ export default function PostPage() {
   // Init comments when post loads
   useEffect(() => {
     if (post && comments.length === 0) {
-      setComments(post.comments.map(fromMock));
+      if (dbPost) {
+        // DB comments have author objects
+        const dbComments = (dbPost.comments || []) as Array<Record<string, unknown>>;
+        setComments(dbComments.map(fromDb));
+      } else {
+        setComments(post.comments.map(fromMock));
+      }
     }
-  }, [post]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [post, dbPost]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -324,7 +350,7 @@ export default function PostPage() {
     (user?.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : "You");
 
   const myImage = user?.profilePictureUrl ||
-    (user?.walletAddress ? `https://api.dicebear.com/9.x/notionists/svg?seed=${user.walletAddress.toLowerCase()}&backgroundColor=b6e3f4` : undefined);
+    (user?.walletAddress ? getAvatarUrl(user.walletAddress) : undefined);
 
   const makeReply = (content: string): LocalComment => {
     const c: LocalComment = {

@@ -8,6 +8,7 @@ import MobileNav from "@/components/MobileNav";
 import KindBadge from "@/components/KindBadge";
 import { IconArrowRight } from "@/components/Icons";
 import { useAuth } from "@/lib/auth";
+import { getAvatarUrl } from "@/lib/avatar";
 
 function BackIcon() {
   return (
@@ -93,7 +94,7 @@ export default function ProfilePage() {
   const walletAddr = user?.walletAddress;
   const shortAddr = walletAddr ? `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}` : null;
   const avatarSrc = user?.profilePictureUrl ||
-    (walletAddr ? `https://api.dicebear.com/9.x/notionists/svg?seed=${walletAddr.toLowerCase()}&backgroundColor=b6e3f4` : undefined);
+    (walletAddr ? getAvatarUrl(walletAddr) : undefined);
 
   // Fetch profile from DB
   useEffect(() => {

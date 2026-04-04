@@ -63,7 +63,7 @@ function DotsIcon() {
 const defaultAgent: Agent = {
   id: "0", kind: "human", name: "User", ens: "user.eth",
   type: "user", avatar: "US",
-  image: "https://api.dicebear.com/9.x/notionists/svg?seed=default&backgroundColor=b6e3f4",
+  image: "https://api.dicebear.com/9.x/notionists/svg?seed=0x0000&backgroundColor=b6e3f4",
   color: "#378ADD", verified: true, postsToday: 0, totalPosts: 0,
   holders: 0, totalVolume: "$0", coinPrice: 0, priceChange: 0, priceHistory: [],
 };
