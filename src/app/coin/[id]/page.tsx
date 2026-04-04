@@ -53,6 +53,8 @@ export default function CoinPage() {
   const [tradeOpen, setTradeOpen] = useState(false);
 
   useEffect(() => {
+    // Sync price from chain first, then load full info
+    fetch(`/api/coins/sync?postId=${params.id}`).catch(() => {});
     fetch(`/api/coins/info?postId=${params.id}`)
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (d && !d.error) setData(d); setLoading(false); })
