@@ -7,22 +7,43 @@ export default function Sparkline({
   positive: boolean;
   height?: number;
 }) {
+  if (!data || data.length < 2) return null;
+
   const min = Math.min(...data);
   const max = Math.max(...data);
-  const range = max - min || 1;
+  const rawRange = max - min;
+
+  // If price change is less than 5% of the average, show mostly flat
+  // This prevents micro-variations from looking like wild swings
+  const avg = data.reduce((a, b) => a + b, 0) / data.length;
+  const minRange = avg * 0.1; // At least 10% of average for visual range
+  const range = Math.max(rawRange, minRange) || 1;
+
+  // Center the data in the visual range
+  const center = (max + min) / 2;
+  const visualMin = center - range / 2;
+
   const w = height > 50 ? 400 : data.length * 6;
   const pad = 2;
 
   const points = data
     .map((v, i) => {
       const x = pad + (i / (data.length - 1)) * (w - pad * 2);
-      const y = pad + (1 - (v - min) / range) * (height - pad * 2);
-      return `${x},${y}`;
+      const y = pad + (1 - (v - visualMin) / range) * (height - pad * 2);
+      // Clamp y to chart bounds
+      const clampedY = Math.max(pad, Math.min(height - pad, y));
+      return `${x},${clampedY}`;
     })
     .join(" ");
 
   const color = positive ? "#22C55E" : "#EF4444";
-  const gradId = `spark-${positive ? "g" : "r"}-${height}`;
+  const gradId = `spark-${positive ? "g" : "r"}-${height}-${data.length}`;
+
+  const lastY = (() => {
+    const v = data[data.length - 1];
+    const y = pad + (1 - (v - visualMin) / range) * (height - pad * 2);
+    return Math.max(pad, Math.min(height - pad, y));
+  })();
 
   return (
     <svg
@@ -48,21 +69,10 @@ export default function Sparkline({
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {height > 50 && data.length > 0 && (
+      {height > 50 && (
         <>
-          <circle
-            cx={w - pad}
-            cy={pad + (1 - (data[data.length - 1] - min) / range) * (height - pad * 2)}
-            r="4"
-            fill={color}
-          />
-          <circle
-            cx={w - pad}
-            cy={pad + (1 - (data[data.length - 1] - min) / range) * (height - pad * 2)}
-            r="8"
-            fill={color}
-            opacity="0.2"
-          />
+          <circle cx={w - pad} cy={lastY} r="4" fill={color} />
+          <circle cx={w - pad} cy={lastY} r="8" fill={color} opacity="0.2" />
         </>
       )}
     </svg>
