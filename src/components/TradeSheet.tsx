@@ -122,6 +122,7 @@ export default function TradeSheet({
   const [quote, setQuote] = useState<{ tokensOut?: string; usdcOut?: string } | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [processingStep, setProcessingStep] = useState(0); // 0=getting quote, 1=signing, 2=confirming, 3=done
 
   const handleConfirm = async () => {
     if (!canSubmit || !postId) return;
@@ -155,10 +156,12 @@ export default function TradeSheet({
 
   const handleExecute = async () => {
     setStep("processing");
+    setProcessingStep(0);
     setError(null);
 
     try {
-      // Get transaction data from API
+      // Step 1: Get transaction data
+      setProcessingStep(0);
       const endpoint = tab === "buy" ? "/api/trades/buy" : "/api/trades/sell";
       const body = tab === "buy"
         ? { walletAddress: user?.walletAddress, postId, usdcAmount: numAmount }
@@ -172,39 +175,62 @@ export default function TradeSheet({
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Transaction failed");
+        setError(data.error || "Failed to build transaction");
         setStep("confirm");
         return;
       }
 
-      // Execute via MiniKit if in World App
+      // Step 2: Sign and send via MiniKit
+      setProcessingStep(1);
       if (isMiniApp()) {
         const txs = data.transactions.map((t: { to: string; data: string }) => ({
           to: t.to,
           data: t.data,
         }));
 
-        const result = await MiniKit.sendTransaction({
-          chainId: 480,
-          transactions: txs,
-        });
+        let result;
+        try {
+          result = await MiniKit.sendTransaction({
+            chainId: 480,
+            transactions: txs,
+          });
+        } catch (txErr) {
+          setError(txErr instanceof Error ? txErr.message : "Transaction rejected");
+          setStep("confirm");
+          return;
+        }
 
         if (result.data?.userOpHash) {
           setTxHash(result.data.userOpHash);
+          setProcessingStep(2);
 
-          // Confirm trade in DB
-          await fetch("/api/trades/confirm", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              walletAddress: user?.walletAddress,
-              postId,
-              coinAddress: data.transactions[data.transactions.length - 1]?.to,
-              txHash: result.data.userOpHash,
-              type: tab,
-            }),
-          });
+          // Step 3: Confirm in DB
+          try {
+            await fetch("/api/trades/confirm", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                walletAddress: user?.walletAddress,
+                postId,
+                coinAddress: data.transactions[data.transactions.length - 1]?.to,
+                txHash: result.data.userOpHash,
+                type: tab,
+              }),
+            });
+          } catch {
+            // DB confirm can fail silently — tx already happened
+          }
+
+          setProcessingStep(3);
+        } else {
+          setError("Transaction was not completed");
+          setStep("confirm");
+          return;
         }
+      } else {
+        setError("Open in World App to trade");
+        setStep("confirm");
+        return;
       }
 
       if (comment.trim() && onTrade) {
@@ -481,28 +507,36 @@ export default function TradeSheet({
                   </div>
                   <h3 className="text-[16px] font-extrabold mb-1">Processing transaction</h3>
                   <p className="text-[13px] text-fg-tertiary text-center">
-                    {tab === "buy" ? "Buying" : "Selling"} {tokenAmount.toFixed(4)} {tokenName} for {numAmount.toFixed(2)} USDC...
+                    {tab === "buy" ? "Buying" : "Selling"} {tokenName} for {numAmount.toFixed(4)} USDC...
                   </p>
 
                   <div className="w-full mt-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-6 h-6 rounded-full bg-green flex items-center justify-center shrink-0">
-                        <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                      </div>
-                      <span className="text-[13px] text-fg">Wallet connected</span>
-                    </div>
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-6 h-6 rounded-full bg-green flex items-center justify-center shrink-0">
-                        <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                      </div>
-                      <span className="text-[13px] text-fg">Transaction signed</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full border-2 border-accent flex items-center justify-center shrink-0 animate-pulse">
-                        <div className="w-2 h-2 rounded-full bg-accent" />
-                      </div>
-                      <span className="text-[13px] text-fg-tertiary">Confirming on World Chain...</span>
-                    </div>
+                    {[
+                      { label: "Building transaction", doneAt: 1 },
+                      { label: "Waiting for signature", doneAt: 2 },
+                      { label: "Confirming on World Chain", doneAt: 3 },
+                    ].map((s, i) => {
+                      const done = processingStep > s.doneAt - 1;
+                      const active = processingStep === s.doneAt - 1;
+                      return (
+                        <div key={i} className="flex items-center gap-3 mb-3">
+                          {done ? (
+                            <div className="w-6 h-6 rounded-full bg-green flex items-center justify-center shrink-0">
+                              <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                            </div>
+                          ) : active ? (
+                            <div className="w-6 h-6 rounded-full border-2 border-accent flex items-center justify-center shrink-0 animate-pulse">
+                              <div className="w-2 h-2 rounded-full bg-accent" />
+                            </div>
+                          ) : (
+                            <div className="w-6 h-6 rounded-full border-2 border-border flex items-center justify-center shrink-0">
+                              <div className="w-2 h-2 rounded-full bg-border" />
+                            </div>
+                          )}
+                          <span className={`text-[13px] ${done ? "text-fg" : active ? "text-fg-secondary" : "text-fg-tertiary"}`}>{s.label}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
