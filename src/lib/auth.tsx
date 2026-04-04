@@ -74,13 +74,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (result.executedWith !== "fallback" && result.data) {
-          // Wait a bit for MiniKit to populate user data
-          await new Promise((r) => setTimeout(r, 500));
+          const address = result.data.address;
+
+          // Fetch profile data from World username service
+          let username: string | undefined;
+          let profilePictureUrl: string | undefined;
+          try {
+            const profile = await MiniKit.getUserByAddress(address);
+            username = profile?.username;
+            profilePictureUrl = profile?.profilePictureUrl;
+          } catch {
+            // getUserByAddress may fail — use MiniKit.user fallback
+            await new Promise((r) => setTimeout(r, 500));
+            username = MiniKit.user?.username;
+            profilePictureUrl = MiniKit.user?.profilePictureUrl;
+          }
 
           const userData: UserData = {
-            walletAddress: result.data.address,
-            username: MiniKit.user?.username,
-            profilePictureUrl: MiniKit.user?.profilePictureUrl,
+            walletAddress: address,
+            username,
+            profilePictureUrl,
             isOrbVerified: MiniKit.user?.verificationStatus?.isOrbVerified ?? false,
             isDocumentVerified: MiniKit.user?.verificationStatus?.isDocumentVerified ?? false,
             isConnected: true,
