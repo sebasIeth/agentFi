@@ -82,14 +82,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const installed = MiniKit.isInstalled();
       setIsMiniApp(installed);
 
-      // Check sessionStorage first
+      // Clear old sessions — force re-auth with lowercase wallet
       if (typeof window !== "undefined") {
+        const version = sessionStorage.getItem("agentfi_v");
+        if (version !== "2") {
+          sessionStorage.removeItem("agentfi_user");
+          sessionStorage.setItem("agentfi_v", "2");
+        }
+
         const saved = sessionStorage.getItem("agentfi_user");
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
-            if (parsed?.isConnected) {
-              if (parsed.walletAddress) parsed.walletAddress = parsed.walletAddress.toLowerCase();
+            if (parsed?.isConnected && parsed.walletAddress) {
+              parsed.walletAddress = parsed.walletAddress.toLowerCase();
               setUser(parsed);
               setIsLoading(false);
               return;
