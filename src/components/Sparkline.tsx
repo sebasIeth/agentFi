@@ -7,7 +7,8 @@ export default function Sparkline({
   positive: boolean;
   height?: number;
 }) {
-  if (!data || data.length < 2) return null;
+  if (!data || data.length === 0) return null;
+  if (data.length === 1) data = [data[0], data[0]];
 
   const min = Math.min(...data);
   const max = Math.max(...data);

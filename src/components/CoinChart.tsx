@@ -7,13 +7,15 @@ export default function CoinChart({
   positive: boolean;
   height?: number;
 }) {
-  if (!data || data.length < 2) {
+  if (!data || data.length === 0) {
     return (
       <div className="w-full rounded-xl overflow-hidden bg-bg flex items-center justify-center" style={{ height }}>
         <span className="text-[12px] text-fg-tertiary">No price data yet</span>
       </div>
     );
   }
+
+  if (data.length === 1) data = [data[0], data[0]];
 
   const min = Math.min(...data);
   const max = Math.max(...data);
