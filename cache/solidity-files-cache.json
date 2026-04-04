@@ -303,6 +303,44 @@
       "artifacts": [
         "IERC20Metadata"
       ]
+    },
+    "/Users/sebastianramirez/Desktop/ethglobal/contracts/PostFactoryV2.sol": {
+      "lastModificationDate": 1775306361906,
+      "contentHash": "cbeaf4fe84241a36be6e77460b5381aa",
+      "sourceName": "contracts/PostFactoryV2.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./PostCoin.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "PostFactoryV2"
+      ]
     }
   }
 }

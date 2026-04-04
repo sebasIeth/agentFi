@@ -49,6 +49,10 @@ declare module "hardhat/types/runtime" {
       name: "PostFactory",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.PostFactory__factory>;
+    getContractFactory(
+      name: "PostFactoryV2",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.PostFactoryV2__factory>;
 
     getContractAt(
       name: "IERC1155Errors",
@@ -95,6 +99,11 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.PostFactory>;
+    getContractAt(
+      name: "PostFactoryV2",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.PostFactoryV2>;
 
     deployContract(
       name: "IERC1155Errors",
@@ -132,6 +141,10 @@ declare module "hardhat/types/runtime" {
       name: "PostFactory",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.PostFactory>;
+    deployContract(
+      name: "PostFactoryV2",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.PostFactoryV2>;
 
     deployContract(
       name: "IERC1155Errors",
@@ -178,6 +191,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.PostFactory>;
+    deployContract(
+      name: "PostFactoryV2",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.PostFactoryV2>;
 
     // default types
     getContractFactory(

@@ -4,3 +4,4 @@
 export type { AgentRegistry } from "./AgentRegistry";
 export type { PostCoin } from "./PostCoin";
 export type { PostFactory } from "./PostFactory";
+export type { PostFactoryV2 } from "./PostFactoryV2";

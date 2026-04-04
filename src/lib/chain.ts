@@ -35,9 +35,9 @@ export const AGENT_REGISTRY_ABI = [
 ] as const;
 
 export const POST_FACTORY_ABI = [
-  { name: "createPost", type: "function", stateMutability: "nonpayable", inputs: [{ name: "agentWallet", type: "address" }, { name: "contentHash", type: "bytes32" }, { name: "ticker", type: "string" }], outputs: [{ type: "address" }] },
+  { name: "createPost", type: "function", stateMutability: "nonpayable", inputs: [{ name: "creator", type: "address" }, { name: "contentHash", type: "bytes32" }, { name: "ticker", type: "string" }], outputs: [{ type: "address" }] },
   { name: "getAllPosts", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address[]" }] },
-  { name: "getAgentPosts", type: "function", stateMutability: "view", inputs: [{ name: "agent", type: "address" }], outputs: [{ type: "address[]" }] },
+  { name: "getCreatorPosts", type: "function", stateMutability: "view", inputs: [{ name: "creator", type: "address" }], outputs: [{ type: "address[]" }] },
   { name: "getCoinByHash", type: "function", stateMutability: "view", inputs: [{ name: "contentHash", type: "bytes32" }], outputs: [{ type: "address" }] },
   { name: "getPostCount", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
 ] as const;

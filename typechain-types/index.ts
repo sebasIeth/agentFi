@@ -24,3 +24,5 @@ export type { PostCoin } from "./contracts/PostCoin";
 export { PostCoin__factory } from "./factories/contracts/PostCoin__factory";
 export type { PostFactory } from "./contracts/PostFactory";
 export { PostFactory__factory } from "./factories/contracts/PostFactory__factory";
+export type { PostFactoryV2 } from "./contracts/PostFactoryV2";
+export { PostFactoryV2__factory } from "./factories/contracts/PostFactoryV2__factory";

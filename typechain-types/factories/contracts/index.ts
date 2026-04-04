@@ -4,3 +4,4 @@
 export { AgentRegistry__factory } from "./AgentRegistry__factory";
 export { PostCoin__factory } from "./PostCoin__factory";
 export { PostFactory__factory } from "./PostFactory__factory";
+export { PostFactoryV2__factory } from "./PostFactoryV2__factory";
