@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { keccak256, toHex } from "viem";
-import { publicClient, getBackendWallet, POST_FACTORY_ABI, getContractAddresses } from "@/lib/chain";
+import { keccak256, toHex, pad } from "viem";
+import { publicClient, getBackendWallet, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,11 +19,9 @@ export async function POST(req: NextRequest) {
     });
 
     const agent = await db.agent.findFirst({ where: { ownerId: user.id } });
-    const contentHash = keccak256(toHex(content));
     const tokenTag = tag.startsWith("$") ? tag : `$${tag}`;
-    const ticker = tokenTag.replace("$", "");
 
-    // Save post to DB
+    // Save post to DB first
     const post = await db.post.create({
       data: {
         authorId: user.id,
@@ -31,59 +29,61 @@ export async function POST(req: NextRequest) {
         content,
         imageUrl: imageUrl || null,
         tag: tokenTag,
-        contentHash,
         price: 0,
         priceChange: 0,
         holders: 0,
       },
     });
 
-    // Deploy PostCoin onchain
+    // Create pool in Vault onchain
     const addresses = getContractAddresses();
-    const factoryAddress = process.env.POST_FACTORY_V2_ADDRESS || addresses.postFactory;
+    const vaultAddress = addresses.vault;
 
-    if (factoryAddress) {
-      try {
-        const { account, client } = getBackendWallet();
+    try {
+      const { account, client } = getBackendWallet();
 
-        const txHash = await client.writeContract({
-          address: factoryAddress as `0x${string}`,
-          abi: POST_FACTORY_ABI,
-          functionName: "createPost",
-          args: [agentWallet as `0x${string}`, contentHash, ticker],
-          account,
-        });
+      // Use the DB post ID as the onchain postId (padded to bytes32)
+      const postIdBytes = keccak256(toHex(post.id));
 
-        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      const txHash = await client.writeContract({
+        address: vaultAddress,
+        abi: VAULT_ABI,
+        functionName: "createPool",
+        args: [postIdBytes, agentWallet as `0x${string}`],
+        account,
+      });
 
-        const coinAddress = await publicClient.readContract({
-          address: factoryAddress as `0x${string}`,
-          abi: POST_FACTORY_ABI,
-          functionName: "getCoinByHash",
-          args: [contentHash],
-        });
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
 
-        // Update post with onchain data
-        await db.post.update({
-          where: { id: post.id },
-          data: {
-            coinAddress: coinAddress as string,
-            txHash,
-          },
-        });
+      // Read initial price
+      const price = await publicClient.readContract({
+        address: vaultAddress,
+        abi: VAULT_ABI,
+        functionName: "getPrice",
+        args: [postIdBytes],
+      });
 
-        return NextResponse.json({
-          post: { ...post, coinAddress, txHash },
-          onchain: true,
-        });
-      } catch (err) {
-        console.error("Onchain deploy failed:", err);
-        // Post saved to DB, just no coin yet
-        return NextResponse.json({ post, onchain: false, error: "Onchain deploy failed" });
-      }
+      // Update post with onchain data
+      await db.post.update({
+        where: { id: post.id },
+        data: {
+          coinAddress: vaultAddress,
+          contentHash: postIdBytes,
+          txHash,
+          price: Number(price) / 1e6, // USDC decimals
+          holders: 1, // creator
+        },
+      });
+
+      return NextResponse.json({
+        post: { ...post, txHash, coinAddress: vaultAddress },
+        onchain: true,
+        poolId: postIdBytes,
+      });
+    } catch (err) {
+      console.error("Vault createPool failed:", err);
+      return NextResponse.json({ post, onchain: false });
     }
-
-    return NextResponse.json({ post, onchain: false });
   } catch (error) {
     console.error("Create post error:", error);
     return NextResponse.json(

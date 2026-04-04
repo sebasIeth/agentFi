@@ -1,50 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import { encodeFunctionData, parseUnits } from "viem";
-import { publicClient, POST_COIN_ABI } from "@/lib/chain";
+import { db } from "@/lib/db";
+import { encodeFunctionData, parseUnits, keccak256, toHex } from "viem";
+import { publicClient, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 
 export async function POST(req: NextRequest) {
   try {
-    const { walletAddress, coinAddress, tokenAmount } = await req.json();
+    const { walletAddress, postId, tokenAmount } = await req.json();
 
-    if (!walletAddress || !coinAddress || !tokenAmount) {
+    if (!walletAddress || !postId || !tokenAmount) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
+    const addresses = getContractAddresses();
     const tokensParsed = parseUnits(tokenAmount.toString(), 18);
 
-    // Get quote from chain
+    const post = await db.post.findUnique({ where: { id: postId } });
+    if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+
+    const poolId = (post.contentHash || keccak256(toHex(postId))) as `0x${string}`;
+
+    // Get quote
     const usdcOut = await publicClient.readContract({
-      address: coinAddress as `0x${string}`,
-      abi: POST_COIN_ABI,
+      address: addresses.vault,
+      abi: VAULT_ABI,
       functionName: "getSellQuote",
-      args: [tokensParsed],
+      args: [poolId, tokensParsed],
     });
 
-    // Build unsigned tx for frontend
-    const txData = encodeFunctionData({
-      abi: POST_COIN_ABI,
+    const minUsdc = (usdcOut as bigint) * BigInt(95) / BigInt(100); // 5% slippage
+    const sellData = encodeFunctionData({
+      abi: VAULT_ABI,
       functionName: "sell",
-      args: [tokensParsed],
+      args: [poolId, tokensParsed, minUsdc],
     });
 
     return NextResponse.json({
       quote: {
         tokensIn: tokenAmount,
         usdcOut: usdcOut.toString(),
+        minUsdcOut: minUsdc.toString(),
       },
       transactions: [
-        {
-          to: coinAddress,
-          data: txData,
-          description: "Sell tokens",
-        },
+        { to: addresses.vault, data: sellData },
       ],
+      poolId,
     });
   } catch (error) {
     console.error("Sell error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
   }
 }

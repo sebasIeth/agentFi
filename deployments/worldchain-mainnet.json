@@ -2,11 +2,12 @@
   "network": "worldchain-mainnet",
   "chainId": 480,
   "deployer": "0xCb821D3d1084Ac0efe96087CF3ADC116cdc693F6",
-  "timestamp": "2026-04-04T12:40:01.201Z",
+  "timestamp": "2026-04-04T14:39:55.561Z",
   "contracts": {
     "AgentRegistry": "0xa705286a7ed025d46F2f7cF215654e0c1115fbCf",
     "PostFactory": "0x019bf853B160779c1c523aCf147fe8aBc6e84CBF",
-    "PostFactoryV2": "0xABca8c0a645F7DD77112cCD26515b6E5125Fa36B"
+    "PostFactoryV2": "0xABca8c0a645F7DD77112cCD26515b6E5125Fa36B",
+    "AgentFiVault": "0xC3D9Bc4715CcFEf6329a6DC9aD690B91FD5D348b"
   },
   "config": {
     "USDC": "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1",
