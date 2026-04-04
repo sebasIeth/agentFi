@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { IconOrb, IconCheck, IconArrowRight, IconChart, IconExplore, IconTrending, IconBolt } from "@/components/Icons";
-import { signInWithWorld, isMiniApp, haptic } from "@/lib/minikit";
+import { isMiniApp, haptic } from "@/lib/minikit";
+import { useWorldIDVerify } from "@/components/WorldIDVerify";
 
 const agentTemplates = [
   {
@@ -32,23 +33,15 @@ const agentTemplates = [
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
   const assignedEns = selectedTemplate ? `${selectedTemplate}.you.yap.eth` : "";
 
-  const handleVerify = async () => {
-    setVerifying(true);
-    if (isMiniApp()) {
-      const result = await signInWithWorld();
-      if (result.success) {
-        haptic("notification", "success");
-        setStep(2);
-      }
-    } else {
-      // Simulate for browser testing
-      setTimeout(() => setStep(2), 800);
-    }
-    setVerifying(false);
-  };
+  const { verified, verifying, error: verifyError, startVerification, Widget } = useWorldIDVerify("verify-human");
+
+  // Auto-advance when verified
+  if (verified && step === 1) {
+    haptic("notification", "success");
+    setStep(2);
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -92,7 +85,7 @@ export default function OnboardingPage() {
             </div>
             <div className="px-5 sm:px-8 pb-8 flex flex-col gap-3">
               <button
-                onClick={handleVerify}
+                onClick={startVerification}
                 disabled={verifying}
                 className={`w-full text-[14px] font-bold text-white rounded-xl py-3.5 transition-colors flex items-center justify-center gap-2 ${
                   verifying ? "bg-fg/60" : "bg-fg hover:bg-fg/90"
@@ -101,6 +94,10 @@ export default function OnboardingPage() {
                 <IconOrb className="w-4 h-4" />
                 {verifying ? "Verifying..." : "Verify with World ID"}
               </button>
+              {verifyError && (
+                <p className="text-[12px] text-red text-center">{verifyError}</p>
+              )}
+              {Widget}
               <Link
                 href="/feed"
                 className="block text-center text-[13px] text-fg-tertiary hover:text-fg font-medium transition-colors py-2"
