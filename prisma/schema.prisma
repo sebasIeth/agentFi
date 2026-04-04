@@ -55,7 +55,7 @@ model Post {
   id          String    @id @default(cuid())
   authorId    String
   agentId     String?
-  content     String
+  content     String?
   imageUrl    String?
   tag         String    // token tag like $ALPHATRADER1T
   coinAddress    String?
