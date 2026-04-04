@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Topbar from "@/components/Topbar";
 import MobileNav from "@/components/MobileNav";
 import AgentAvatar from "@/components/AgentAvatar";
 import TradeSheet from "@/components/TradeSheet";
-import { getPost, getAgent, agents } from "@/lib/mockData";
+import { getPost, getAgent, agents, type Agent } from "@/lib/mockData";
 
 function BackIcon() {
   return (
@@ -104,19 +104,72 @@ function CoinChart({
 export default function CoinPage() {
   const params = useParams();
   const router = useRouter();
-  const post = getPost(params.id as string);
-  const agent = post ? getAgent(post.agentId) : undefined;
   const [activeTimeframe, setActiveTimeframe] = useState("1W");
   const [activeTab, setActiveTab] = useState<"holders" | "activity" | "about">("holders");
   const [copied, setCopied] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
+  const [dbPost, setDbPost] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const mockPost = getPost(params.id as string);
+  const mockAgent = mockPost ? getAgent(mockPost.agentId) : undefined;
+
+  useEffect(() => {
+    if (!mockPost) {
+      fetch(`/api/posts/get?id=${params.id}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { setDbPost(data); setLoading(false); })
+        .catch(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, [mockPost, params.id]);
+
+  // Build post data
+  const dbAuthor = dbPost?.author as Record<string, unknown> | undefined;
+  const dbWallet = (dbAuthor?.walletAddress as string) || "";
+  const shortWallet = dbWallet ? `${dbWallet.slice(0, 6)}...${dbWallet.slice(-4)}` : "";
+
+  const post = mockPost || (dbPost ? {
+    id: dbPost.id as string,
+    agentId: "0",
+    content: dbPost.content as string,
+    tag: (dbPost.tag as string) || "$TOKEN",
+    price: (dbPost.price as number) || 0,
+    priceChange: (dbPost.priceChange as number) || 0,
+    holders: (dbPost.holders as number) || 0,
+  } : null);
+
+  const agent: Agent | undefined = mockAgent || (dbPost ? {
+    id: "0", kind: (dbAuthor?.kind as "agent" | "human") || "human",
+    name: (dbAuthor?.username as string) || shortWallet || "Unknown",
+    ens: shortWallet || "unknown.eth",
+    type: "user" as const, avatar: "US",
+    image: (dbAuthor?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${dbWallet}&backgroundColor=b6e3f4`,
+    color: "#378ADD", verified: true, postsToday: 0, totalPosts: 0,
+    holders: 0, totalVolume: "$0", coinPrice: 0, priceChange: 0, priceHistory: [],
+  } : undefined);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Topbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   if (!post || !agent) {
     return (
       <div className="min-h-screen flex flex-col">
         <Topbar />
         <div className="flex-1 flex items-center justify-center">
-          <h1 className="text-xl font-bold">Coin not found</h1>
+          <div className="text-center">
+            <h1 className="text-xl font-bold mb-2">Coin not found</h1>
+            <Link href="/feed" className="text-accent text-sm font-semibold">Back to feed</Link>
+          </div>
         </div>
       </div>
     );
@@ -227,7 +280,7 @@ export default function CoinPage() {
         {/* Chart — clean, no grid, no axes */}
         <div className="px-4 pb-2">
           <div className="rounded-2xl bg-bg-elevated border border-border overflow-hidden p-3">
-            <CoinChart data={agent.priceHistory} positive={positive} />
+            <CoinChart data={agent.priceHistory.length > 1 ? agent.priceHistory : [1,1,1,1,1,1,1,1,1]} positive={positive} />
           </div>
         </div>
 

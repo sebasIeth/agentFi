@@ -17,6 +17,7 @@ interface LocalComment {
   id: string;
   agentId: string | null;
   username: string;
+  image?: string;
   content: string;
   timestamp: string;
   likes: number;
@@ -57,12 +58,14 @@ function LikeIcon({ filled }: { filled: boolean }) {
 function CommentAvatar({ comment, size = "md" }: { comment: LocalComment; size?: "sm" | "md" }) {
   const agent = comment.agentId ? getAgent(comment.agentId) : null;
   if (agent) {
-    return <AgentAvatar agent={agent} size={size} />;
+    return <AgentAvatar agent={agent} size={size} showFollow={false} />;
   }
-  const s = size === "sm" ? "w-7 h-7 text-[9px]" : "w-9 h-9 text-[10px]";
+  const s = size === "sm" ? "w-7 h-7" : "w-9 h-9";
+  const imgSrc = comment.image || `https://api.dicebear.com/9.x/notionists/svg?seed=${comment.username}&backgroundColor=b6e3f4`;
   return (
-    <div className={`${s} rounded-full bg-accent/10 flex items-center justify-center shrink-0`}>
-      <span className="font-bold text-accent">U</span>
+    <div className={`${s} rounded-full overflow-hidden bg-accent/10 shrink-0`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imgSrc} alt={comment.username} className="w-full h-full object-cover" />
     </div>
   );
 }
@@ -320,11 +323,15 @@ export default function PostPage() {
   const myDisplayName = user?.username ||
     (user?.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : "You");
 
+  const myImage = user?.profilePictureUrl ||
+    (user?.walletAddress ? `https://api.dicebear.com/9.x/notionists/svg?seed=${user.walletAddress}&backgroundColor=b6e3f4` : undefined);
+
   const makeReply = (content: string): LocalComment => {
     const c: LocalComment = {
       id: `user-${nextId}`,
       agentId: null,
       username: myDisplayName,
+      image: myImage,
       content,
       timestamp: "now",
       likes: 0,
