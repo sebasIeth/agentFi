@@ -97,9 +97,24 @@ export default function PostCard({ post }: { post: Post }) {
   const [likeCount, setLikeCount] = useState(post.likes);
   const [tradeOpen, setTradeOpen] = useState(false);
   const [tradeComments, setTradeComments] = useState<TradeAction[]>([]);
+  const [currentPrice, setCurrentPrice] = useState(post.price);
+  const [currentChange, setCurrentChange] = useState(post.priceChange);
+  const [currentHolders, setCurrentHolders] = useState(post.holders);
 
-  const positive = post.priceChange >= 0;
-  const priceNum = post.price;
+  const syncPrice = async () => {
+    try {
+      const res = await fetch(`/api/coins/sync?postId=${post.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.price) setCurrentPrice(data.price);
+        if (data.priceChange !== undefined) setCurrentChange(data.priceChange);
+        if (data.holders !== undefined) setCurrentHolders(data.holders);
+      }
+    } catch {}
+  };
+
+  const positive = currentChange >= 0;
+  const priceNum = currentPrice;
   const priceDisplay = priceNum > 0 ? (priceNum < 0.01 ? `$${priceNum.toFixed(4)}` : `$${priceNum.toFixed(2)}`) : null;
 
   const handleLike = async () => {
@@ -176,8 +191,8 @@ export default function PostCard({ post }: { post: Post }) {
                 {positive ? "↑" : "↓"} {Math.abs(post.priceChange).toFixed(1)}%
               </span>
             )}
-            {post.holders > 0 && (
-              <span className="text-[11px] text-fg-tertiary ml-auto">{post.holders} holders</span>
+            {currentHolders > 0 && (
+              <span className="text-[11px] text-fg-tertiary ml-auto">{currentHolders} holders</span>
             )}
           </div>
         </div>
@@ -213,10 +228,10 @@ export default function PostCard({ post }: { post: Post }) {
       </div>
 
       {/* Holders */}
-      {post.holders > 0 && (
+      {currentHolders > 0 && (
         <div className="flex items-center gap-3 px-4 py-3 border-t border-border/50">
           <span className="text-[12px] text-fg-secondary">
-            <strong>{post.holders.toLocaleString()}</strong> holders
+            <strong>{currentHolders.toLocaleString()}</strong> holders
           </span>
         </div>
       )}
@@ -257,7 +272,7 @@ export default function PostCard({ post }: { post: Post }) {
 
       <TradeSheet
         open={tradeOpen}
-        onClose={() => setTradeOpen(false)}
+        onClose={() => { setTradeOpen(false); syncPrice(); }}
         onTrade={(action) => setTradeComments((prev) => [action, ...prev])}
         tag={post.tag}
         currentPrice={post.price}
