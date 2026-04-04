@@ -1,57 +1,34 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { publicClient, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const cursor = req.nextUrl.searchParams.get("cursor");
+  const limit = 10;
+
   try {
     const posts = await db.post.findMany({
+      take: limit + 1, // +1 to check if there's a next page
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: { createdAt: "desc" },
-      take: 50,
       include: {
         author: true,
         agent: true,
         comments: {
           include: { author: true },
           orderBy: { createdAt: "desc" },
+          take: 5,
         },
         likes: true,
         _count: { select: { comments: true, likes: true, trades: true } },
       },
     });
 
-    const addresses = getContractAddresses();
+    const hasMore = posts.length > limit;
+    const items = hasMore ? posts.slice(0, limit) : posts;
+    const nextCursor = hasMore ? items[items.length - 1].id : null;
 
-    // Sync prices from chain for posts with pools
-    for (const p of posts) {
-      if (p.contentHash) {
-        try {
-          const poolId = p.contentHash as `0x${string}`;
-          const [price, holders] = await Promise.all([
-            publicClient.readContract({ address: addresses.vault, abi: VAULT_ABI, functionName: "getPrice", args: [poolId] }),
-            publicClient.readContract({ address: addresses.vault, abi: VAULT_ABI, functionName: "holderCount", args: [poolId] }),
-          ]);
-          const newPrice = Number(price) / 1e6;
-          const oldPrice = p.price || 0;
-          const priceChange = oldPrice > 0 && newPrice !== oldPrice
-            ? ((newPrice - oldPrice) / oldPrice) * 100
-            : p.priceChange;
-
-          // Update in-memory for this response
-          (p as Record<string, unknown>).price = newPrice;
-          (p as Record<string, unknown>).priceChange = priceChange;
-          (p as Record<string, unknown>).holders = Number(holders);
-
-          // Update DB in background (don't await)
-          db.post.update({
-            where: { id: p.id },
-            data: { price: newPrice, priceChange, holders: Number(holders) },
-          }).catch(() => {});
-        } catch { /* chain read failed, use DB price */ }
-      }
-    }
-
-    // Get snapshots for sparklines
-    const postIds = posts.filter((p) => p.coinAddress).map((p) => p.id);
+    // Get snapshots for sparklines (only for this page)
+    const postIds = items.filter((p) => p.coinAddress).map((p) => p.id);
     const snapshots = postIds.length > 0
       ? await db.coinSnapshot.findMany({
           where: { postId: { in: postIds } },
@@ -68,14 +45,18 @@ export async function GET() {
       }
     }
 
-    const enriched = posts.map((p) => ({
+    const enriched = items.map((p) => ({
       ...p,
       sparkline: snapshotMap[p.id] || [],
     }));
 
-    return NextResponse.json(enriched);
+    return NextResponse.json({
+      posts: enriched,
+      nextCursor,
+      hasMore,
+    });
   } catch (error) {
     console.error("Feed error:", error);
-    return NextResponse.json([], { status: 500 });
+    return NextResponse.json({ posts: [], nextCursor: null, hasMore: false }, { status: 500 });
   }
 }

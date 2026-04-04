@@ -1,26 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Topbar from "@/components/Topbar";
 import MobileNav from "@/components/MobileNav";
 import PostCard from "@/components/PostCard";
 import { IconPulse } from "@/components/Icons";
-import type { Post } from "@/lib/mockData";
+import type { Post, UserKind } from "@/lib/mockData";
 import { getAvatarUrl } from "@/lib/avatar";
 
 const filters = ["All", "Following", "Trending", "New"];
 
-// Map DB post to the shape PostCard expects
+function formatTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 function mapDbPost(dbPost: Record<string, unknown>): Post {
   const author = dbPost.author as Record<string, unknown> | undefined;
   const agent = dbPost.agent as Record<string, unknown> | undefined;
   const counts = dbPost._count as Record<string, number> | undefined;
   const comments = (dbPost.comments || []) as Array<Record<string, unknown>>;
-
   const wallet = (author?.walletAddress as string) || "";
   const shortWallet = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : "Unknown";
   const authorKind = (author?.kind as string) || (agent ? "agent" : "human");
   const authorName = (author?.username as string) || (agent?.name as string) || shortWallet;
+  const sparkline = (dbPost.sparkline as number[] | undefined);
 
   return {
     id: dbPost.id as string,
@@ -30,8 +40,8 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
       name: authorName,
       image: (author?.profilePictureUrl as string) || getAvatarUrl(wallet),
       color: "#378ADD",
-      kind: authorKind as "agent" | "human",
-      ens: (wallet ? shortWallet : "unknown.eth"),
+      kind: authorKind as UserKind,
+      ens: wallet ? shortWallet : "unknown.eth",
     },
     content: dbPost.content as string,
     image: (dbPost.imageUrl as string) || undefined,
@@ -39,9 +49,7 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
     price: (dbPost.price as number) || 0,
     priceChange: (dbPost.priceChange as number) || 0,
     holders: (dbPost.holders as number) || 0,
-    sparkline: ((dbPost as Record<string, unknown>).sparkline as number[] | undefined)?.length
-      ? (dbPost as Record<string, unknown>).sparkline as number[]
-      : [1, 1, 1, 1, 1, 1, 1, 1, 1],
+    sparkline: sparkline && sparkline.length > 0 ? sparkline : [1, 1, 1, 1, 1, 1, 1, 1, 1],
     tag: (dbPost.tag as string) || "$TOKEN",
     likes: counts?.likes || 0,
     reposts: 0,
@@ -55,33 +63,62 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
   };
 }
 
-function formatTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
 export default function FeedPage() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const observerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetch("/api/posts/feed")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setPosts(data.map(mapDbPost));
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const loadPosts = useCallback(async (cursorId: string | null, append: boolean) => {
+    if (append) setLoadingMore(true); else setLoading(true);
+
+    try {
+      const url = cursorId ? `/api/posts/feed?cursor=${cursorId}` : "/api/posts/feed";
+      const res = await fetch(url);
+      const data = await res.json();
+
+      const newPosts = (data.posts || data || []).map((p: Record<string, unknown>) => mapDbPost(p));
+
+      if (append) {
+        setPosts((prev) => [...prev, ...newPosts]);
+      } else {
+        setPosts(newPosts);
+      }
+
+      setCursor(data.nextCursor || null);
+      setHasMore(data.hasMore ?? false);
+    } catch {
+      // ignore
+    }
+
+    setLoading(false);
+    setLoadingMore(false);
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadPosts(null, false);
+  }, [loadPosts]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (!observerRef.current || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && cursor) {
+          loadPosts(cursor, true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(observerRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, cursor, loadPosts]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -109,9 +146,7 @@ export default function FeedPage() {
               key={f}
               onClick={() => setActiveFilter(f)}
               className={`px-4 py-2 rounded-xl text-[13px] font-semibold transition-all whitespace-nowrap ${
-                activeFilter === f
-                  ? "bg-fg text-bg-elevated"
-                  : "text-fg-secondary hover:bg-bg-hover"
+                activeFilter === f ? "bg-fg text-bg-elevated" : "text-fg-secondary hover:bg-bg-hover"
               }`}
             >
               {f}
@@ -142,16 +177,25 @@ export default function FeedPage() {
             {posts.map((post) => (
               <PostCard key={post.id} post={post} />
             ))}
+
+            {/* Scroll trigger */}
+            <div ref={observerRef} className="h-4" />
+
+            {loadingMore && (
+              <div className="flex justify-center py-4">
+                <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            {!hasMore && posts.length > 5 && (
+              <p className="text-center text-[12px] text-fg-tertiary py-4">No more posts</p>
+            )}
           </div>
         ) : (
           <div className="rounded-2xl bg-bg-elevated border border-border py-16 text-center">
             <div className="w-12 h-12 rounded-2xl bg-bg-active flex items-center justify-center mx-auto mb-3">
               <svg className="w-6 h-6 text-fg-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="10" rx="2" />
-                <path d="M12 11V7" />
-                <circle cx="12" cy="5" r="2" />
-                <path d="M7 15h.01M12 15h.01M17 15h.01" strokeWidth="2.5" />
-                <path d="M3 14h2M19 14h2" />
+                <rect x="3" y="11" width="18" height="10" rx="2" /><path d="M12 11V7" /><circle cx="12" cy="5" r="2" /><path d="M7 15h.01M12 15h.01M17 15h.01" strokeWidth="2.5" /><path d="M3 14h2M19 14h2" />
               </svg>
             </div>
             <h3 className="text-[16px] font-extrabold mb-1">No posts yet</h3>
