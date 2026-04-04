@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { haptic } from "@/lib/minikit";
+import { haptic, isMiniApp } from "@/lib/minikit";
+import { MiniKit } from "@worldcoin/minikit-js";
 import { useAuth } from "@/lib/auth";
 
 function ChevronDown() {
@@ -118,16 +119,94 @@ export default function TradeSheet({
     }
   };
 
-  const handleConfirm = () => {
-    if (!canSubmit) return;
-    setStep("confirm");
+  const [quote, setQuote] = useState<{ tokensOut?: string; usdcOut?: string } | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleConfirm = async () => {
+    if (!canSubmit || !postId) return;
+    setError(null);
+
+    try {
+      // Get quote from API
+      const endpoint = tab === "buy" ? "/api/trades/buy" : "/api/trades/sell";
+      const body = tab === "buy"
+        ? { walletAddress: user?.walletAddress, postId, usdcAmount: numAmount }
+        : { walletAddress: user?.walletAddress, postId, tokenAmount: tokenAmount };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to get quote");
+        return;
+      }
+
+      setQuote(data.quote);
+      setStep("confirm");
+    } catch {
+      setError("Failed to get quote");
+    }
   };
 
-  const handleExecute = () => {
+  const handleExecute = async () => {
     setStep("processing");
-    setTimeout(() => {
-      // In production, this would call the real trade API
-      // and update balances from the chain response
+    setError(null);
+
+    try {
+      // Get transaction data from API
+      const endpoint = tab === "buy" ? "/api/trades/buy" : "/api/trades/sell";
+      const body = tab === "buy"
+        ? { walletAddress: user?.walletAddress, postId, usdcAmount: numAmount }
+        : { walletAddress: user?.walletAddress, postId, tokenAmount: tokenAmount };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Transaction failed");
+        setStep("confirm");
+        return;
+      }
+
+      // Execute via MiniKit if in World App
+      if (isMiniApp()) {
+        const txs = data.transactions.map((t: { to: string; data: string }) => ({
+          to: t.to,
+          data: t.data,
+        }));
+
+        const result = await MiniKit.sendTransaction({
+          chainId: 480,
+          transactions: txs,
+        });
+
+        if (result.data?.userOpHash) {
+          setTxHash(result.data.userOpHash);
+
+          // Confirm trade in DB
+          await fetch("/api/trades/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              walletAddress: user?.walletAddress,
+              postId,
+              coinAddress: data.transactions[data.transactions.length - 1]?.to,
+              txHash: result.data.userOpHash,
+              type: tab,
+            }),
+          });
+        }
+      }
+
       if (comment.trim() && onTrade) {
         onTrade({
           type: tab,
@@ -137,9 +216,14 @@ export default function TradeSheet({
           tokenName,
         });
       }
+
       setStep("success");
       haptic("notification", "success");
-    }, 1800);
+    } catch (err) {
+      console.error("Trade execution failed:", err);
+      setError(err instanceof Error ? err.message : "Transaction failed");
+      setStep("confirm");
+    }
   };
 
   const handleDone = () => {
@@ -157,8 +241,10 @@ export default function TradeSheet({
 
   if (!open) return null;
 
-  const fee = numAmount * 0.01;
-  const total = tab === "buy" ? numAmount + fee : numAmount - fee;
+  const totalFee = numAmount * 0.02; // 2% total
+  const creatorFee = numAmount * 0.015; // 1.5% to creator
+  const protocolFee = numAmount * 0.005; // 0.5% to protocol
+  const total = numAmount; // user pays the full amount, fees taken inside
 
   return (
     <>
@@ -322,30 +408,45 @@ export default function TradeSheet({
                   Confirm {tab === "buy" ? "purchase" : "sale"}
                 </h3>
 
+                {error && (
+                  <div className="rounded-xl bg-red-soft border border-red/20 px-4 py-3 mb-4">
+                    <span className="text-[13px] font-semibold text-red">{error}</span>
+                  </div>
+                )}
+
                 <div className="rounded-2xl bg-bg p-4 mb-4">
                   <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/50">
                     <span className="text-[13px] text-fg-secondary">Token</span>
                     <span className="text-[13px] font-bold">{tag}</span>
                   </div>
                   <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/50">
-                    <span className="text-[13px] text-fg-secondary">Amount</span>
-                    <span className="text-[13px] font-bold">{numAmount.toFixed(2)} USDC</span>
+                    <span className="text-[13px] text-fg-secondary">{tab === "buy" ? "You pay" : "You sell"}</span>
+                    <span className="text-[13px] font-bold">{numAmount.toFixed(4)} USDC</span>
                   </div>
                   <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/50">
-                    <span className="text-[13px] text-fg-secondary">You {tab === "buy" ? "receive" : "sell"}</span>
-                    <span className="text-[13px] font-bold">{tokenAmount.toFixed(4)} {tokenName}</span>
+                    <span className="text-[13px] text-fg-secondary">You {tab === "buy" ? "receive" : "get back"}</span>
+                    <span className="text-[13px] font-bold">
+                      {quote ? (tab === "buy"
+                        ? `${(Number(quote.tokensOut) / 1e18).toFixed(2)} ${tokenName}`
+                        : `${(Number(quote.usdcOut) / 1e6).toFixed(4)} USDC`
+                      ) : `${tokenAmount.toFixed(2)} ${tokenName}`}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/50">
                     <span className="text-[13px] text-fg-secondary">Price per token</span>
-                    <span className="text-[13px] font-bold">${currentPrice.toFixed(2)}</span>
+                    <span className="text-[13px] font-bold">${currentPrice < 0.01 ? currentPrice.toFixed(4) : currentPrice.toFixed(2)}</span>
                   </div>
                   <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/50">
-                    <span className="text-[13px] text-fg-secondary">Network fee (1%)</span>
-                    <span className="text-[13px] font-bold">${fee.toFixed(2)}</span>
+                    <span className="text-[13px] text-fg-secondary">Creator fee (1.5%)</span>
+                    <span className="text-[13px] font-bold">${creatorFee.toFixed(4)}</span>
+                  </div>
+                  <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/50">
+                    <span className="text-[13px] text-fg-secondary">Protocol fee (0.5%)</span>
+                    <span className="text-[13px] font-bold">${protocolFee.toFixed(4)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[14px] font-bold">Total</span>
-                    <span className="text-[14px] font-extrabold">${total.toFixed(2)} USDC</span>
+                    <span className="text-[14px] font-bold">Total fee</span>
+                    <span className="text-[14px] font-extrabold">${totalFee.toFixed(4)} USDC (2%)</span>
                   </div>
                 </div>
 
@@ -423,23 +524,28 @@ export default function TradeSheet({
 
                   <div className="w-full rounded-2xl bg-bg p-4 mb-5">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[12px] text-fg-tertiary">Amount</span>
+                      <span className="text-[12px] text-fg-tertiary">{tab === "buy" ? "Tokens received" : "Tokens sold"}</span>
                       <span className={`text-[14px] font-bold ${tab === "buy" ? "text-green" : "text-red"}`}>
-                        {tab === "buy" ? "+" : "-"}{tokenAmount.toFixed(4)} {tokenName}
+                        {quote ? (tab === "buy"
+                          ? `+${(Number(quote.tokensOut) / 1e18).toFixed(2)}`
+                          : `-${tokenAmount.toFixed(2)}`
+                        ) : `${tokenAmount.toFixed(2)}`} {tokenName}
                       </span>
                     </div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[12px] text-fg-tertiary">{tab === "buy" ? "Spent" : "Received"}</span>
-                      <span className="text-[14px] font-bold">{total.toFixed(2)} USDC</span>
+                      <span className="text-[12px] text-fg-tertiary">{tab === "buy" ? "USDC spent" : "USDC received"}</span>
+                      <span className="text-[14px] font-bold">{numAmount.toFixed(4)} USDC</span>
                     </div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[12px] text-fg-tertiary">New balance</span>
-                      <span className="text-[14px] font-bold">{total.toFixed(2)} USDC</span>
+                      <span className="text-[12px] text-fg-tertiary">Fees paid</span>
+                      <span className="text-[14px] font-bold">${totalFee.toFixed(4)}</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[12px] text-fg-tertiary">Holdings</span>
-                      <span className="text-[14px] font-bold">{tokenAmount.toFixed(4)} {tokenName}</span>
-                    </div>
+                    {txHash && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] text-fg-tertiary">Tx hash</span>
+                        <span className="text-[11px] font-mono text-accent">{txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
+                      </div>
+                    )}
                   </div>
 
                   {comment && (
