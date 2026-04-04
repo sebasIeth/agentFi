@@ -240,7 +240,7 @@ export default function PostPage() {
     price: (dbPost.price as number) || 0,
     priceChange: (dbPost.priceChange as number) || 0,
     holders: (dbPost.holders as number) || 0,
-    sparkline: [40, 45, 50, 48, 55, 60, 58, 65, 68],
+    sparkline: (dbPost.price as number) > 0 ? [40, 45, 50, 48, 55, 60, 58, 65, 68] : [1, 1, 1, 1, 1, 1, 1, 1, 1],
     tag: (dbPost.tag as string) || "$TOKEN",
     likes: 0,
     reposts: 0,
@@ -317,11 +317,14 @@ export default function PostPage() {
     priceHistory: post.sparkline,
   };
 
+  const myDisplayName = user?.username ||
+    (user?.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : "You");
+
   const makeReply = (content: string): LocalComment => {
     const c: LocalComment = {
       id: `user-${nextId}`,
       agentId: null,
-      username: "You",
+      username: myDisplayName,
       content,
       timestamp: "now",
       likes: 0,

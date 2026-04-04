@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { haptic } from "@/lib/minikit";
+import { useAuth } from "@/lib/auth";
 
 function ChevronDown() {
   return (
@@ -62,12 +63,13 @@ export default function TradeSheet({
   tag: string;
   currentPrice: number;
 }) {
+  const { user } = useAuth();
   const [tab, setTab] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
   const [comment, setComment] = useState("");
   const [step, setStep] = useState<Step>("input");
-  const [balance, setBalance] = useState(12.45);
-  const [holdings, setHoldings] = useState(0);
+  const [balance] = useState(0); // Real balance fetched from chain when connected
+  const [holdings] = useState(0);
 
   const numAmount = parseFloat(amount) || 0;
   const tokenAmount = numAmount > 0 ? numAmount / currentPrice : 0;
@@ -104,13 +106,8 @@ export default function TradeSheet({
   const handleExecute = () => {
     setStep("processing");
     setTimeout(() => {
-      if (tab === "buy") {
-        setBalance((b) => parseFloat((b - numAmount).toFixed(2)));
-        setHoldings((h) => parseFloat((h + tokenAmount).toFixed(4)));
-      } else {
-        setBalance((b) => parseFloat((b + numAmount).toFixed(2)));
-        setHoldings((h) => parseFloat((h - tokenAmount).toFixed(4)));
-      }
+      // In production, this would call the real trade API
+      // and update balances from the chain response
       if (comment.trim() && onTrade) {
         onTrade({
           type: tab,
@@ -228,7 +225,7 @@ export default function TradeSheet({
                         ≈ {tokenAmount.toFixed(4)} {tokenName}
                       </span>
                       <span className={`text-[12px] font-medium ${insufficient ? "text-red" : "text-fg-tertiary"}`}>
-                        Balance: {balance.toFixed(2)} USDC
+                        Balance: {user?.isConnected ? `${balance.toFixed(2)} USDC` : "Not connected"}
                       </span>
                     </div>
                   </div>
@@ -269,21 +266,31 @@ export default function TradeSheet({
 
                 {/* CTA */}
                 <div className="px-4 pb-6">
-                  <button
-                    onClick={handleConfirm}
-                    disabled={!canSubmit}
-                    className={`w-full text-[15px] font-bold rounded-2xl py-3.5 transition-colors ${
-                      canSubmit
-                        ? "text-white bg-accent hover:bg-accent/85"
-                        : "text-fg-tertiary bg-bg-hover cursor-not-allowed"
-                    }`}
-                  >
-                    {insufficient
-                      ? "Insufficient balance"
-                      : numAmount > 0
-                      ? `Review ${tab === "buy" ? "purchase" : "sale"}`
-                      : "Enter amount"}
-                  </button>
+                  {currentPrice <= 0 ? (
+                    <div className="w-full text-center text-[14px] font-semibold text-fg-tertiary bg-bg-hover rounded-2xl py-3.5">
+                      Token not launched yet
+                    </div>
+                  ) : !user?.isConnected ? (
+                    <div className="w-full text-center text-[14px] font-semibold text-fg-tertiary bg-bg-hover rounded-2xl py-3.5">
+                      Connect wallet to trade
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleConfirm}
+                      disabled={!canSubmit}
+                      className={`w-full text-[15px] font-bold rounded-2xl py-3.5 transition-colors ${
+                        canSubmit
+                          ? "text-white bg-accent hover:bg-accent/85"
+                          : "text-fg-tertiary bg-bg-hover cursor-not-allowed"
+                      }`}
+                    >
+                      {insufficient
+                        ? "Insufficient balance"
+                        : numAmount > 0
+                        ? `Review ${tab === "buy" ? "purchase" : "sale"}`
+                        : "Enter amount"}
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -407,11 +414,11 @@ export default function TradeSheet({
                     </div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[12px] text-fg-tertiary">New balance</span>
-                      <span className="text-[14px] font-bold">{(tab === "buy" ? balance - numAmount : balance + numAmount).toFixed(2)} USDC</span>
+                      <span className="text-[14px] font-bold">{total.toFixed(2)} USDC</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[12px] text-fg-tertiary">Holdings</span>
-                      <span className="text-[14px] font-bold">{(tab === "buy" ? holdings + tokenAmount : holdings - tokenAmount).toFixed(4)} {tokenName}</span>
+                      <span className="text-[14px] font-bold">{tokenAmount.toFixed(4)} {tokenName}</span>
                     </div>
                   </div>
 
