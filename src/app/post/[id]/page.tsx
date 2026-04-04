@@ -261,7 +261,7 @@ export default function PostPage() {
   const dbWallet = (dbAuthor?.walletAddress as string) || "";
   const shortWallet = dbWallet ? `${dbWallet.slice(0, 6)}...${dbWallet.slice(-4)}` : "";
   const authorName = mockAgent?.name || (dbAuthor?.username as string) || shortWallet || "Unknown";
-  const authorImage = mockAgent?.image || (dbAuthor?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${dbWallet}&backgroundColor=b6e3f4`;
+  const authorImage = mockAgent?.image || (dbAuthor?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${dbWallet.toLowerCase()}&backgroundColor=b6e3f4`;
   const authorKind: UserKind = mockAgent?.kind || (dbAuthor?.kind as UserKind) || "human";
   const authorEns = mockAgent?.ens || shortWallet || "unknown.eth";
   const authorColor = mockAgent?.color || "#378ADD";
@@ -324,7 +324,7 @@ export default function PostPage() {
     (user?.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : "You");
 
   const myImage = user?.profilePictureUrl ||
-    (user?.walletAddress ? `https://api.dicebear.com/9.x/notionists/svg?seed=${user.walletAddress}&backgroundColor=b6e3f4` : undefined);
+    (user?.walletAddress ? `https://api.dicebear.com/9.x/notionists/svg?seed=${user.walletAddress.toLowerCase()}&backgroundColor=b6e3f4` : undefined);
 
   const makeReply = (content: string): LocalComment => {
     const c: LocalComment = {

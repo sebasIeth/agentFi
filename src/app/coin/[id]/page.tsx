@@ -145,7 +145,7 @@ export default function CoinPage() {
     name: (dbAuthor?.username as string) || shortWallet || "Unknown",
     ens: shortWallet || "unknown.eth",
     type: "user" as const, avatar: "US",
-    image: (dbAuthor?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${dbWallet}&backgroundColor=b6e3f4`,
+    image: (dbAuthor?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${dbWallet.toLowerCase()}&backgroundColor=b6e3f4`,
     color: "#378ADD", verified: true, postsToday: 0, totalPosts: 0,
     holders: 0, totalVolume: "$0", coinPrice: 0, priceChange: 0, priceHistory: [],
   } : undefined);

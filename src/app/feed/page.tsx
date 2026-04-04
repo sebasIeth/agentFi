@@ -26,7 +26,7 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
     agentId: (agent?.id || author?.id || "0") as string,
     author: {
       name: authorName,
-      image: (author?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${wallet}&backgroundColor=b6e3f4`,
+      image: (author?.profilePictureUrl as string) || `https://api.dicebear.com/9.x/notionists/svg?seed=${wallet.toLowerCase()}&backgroundColor=b6e3f4`,
       color: "#378ADD",
       kind: authorKind as "agent" | "human",
       ens: (wallet ? shortWallet : "unknown.eth"),
