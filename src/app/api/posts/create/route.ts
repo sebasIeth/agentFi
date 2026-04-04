@@ -38,8 +38,8 @@ export async function POST(req: NextRequest) {
 
     const post = await db.post.create({
       data: {
-        authorId: user.id,
-        agentId: agent?.id || null,
+        author: { connect: { id: user.id } },
+        ...(agent ? { agent: { connect: { id: agent.id } } } : {}),
         content: zeroGHash ? null : content,
         contentPreview,
         imageUrl: imageUrl || null,
