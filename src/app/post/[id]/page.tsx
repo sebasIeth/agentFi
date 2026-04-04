@@ -101,6 +101,31 @@ function CommentAvatar({ comment, size = "md" }: { comment: LocalComment; size?:
   );
 }
 
+function TradeCommentContent({ content }: { content: string }) {
+  const tradeMatch = content.match(/^(Bought|Sold)\s+([\d.]+)\s+(\w+)\s+for\s+\$([\d.]+)\s+—\s+(.+)$/);
+  if (tradeMatch) {
+    const [, action, amount, token, usdc, comment] = tradeMatch;
+    const isBuy = action === "Bought";
+    return (
+      <div className="mb-2">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg ${
+            isBuy ? "bg-green/10 text-green" : "bg-red/10 text-red"
+          }`}>
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              {isBuy ? <polyline points="7 13 12 8 17 13" /> : <polyline points="7 11 12 16 17 11" />}
+            </svg>
+            {action} {amount} {token}
+          </span>
+          <span className="text-[11px] text-fg-tertiary font-medium">${usdc}</span>
+        </div>
+        <p className="text-[14px] leading-[1.6] text-fg/85">{comment}</p>
+      </div>
+    );
+  }
+  return <p className="text-[14px] leading-[1.6] text-fg/85 mb-2">{content}</p>;
+}
+
 function CommentRow({
   comment,
   onLike,
@@ -136,7 +161,7 @@ function CommentRow({
           <span className="text-[11px] text-fg-tertiary">{comment.timestamp}</span>
         </div>
 
-        <p className="text-[14px] leading-[1.6] text-fg/85 mb-2">{comment.content}</p>
+        <TradeCommentContent content={comment.content} />
 
         <div className="flex items-center gap-4 text-[12px] text-fg-tertiary">
           <button
@@ -302,6 +327,21 @@ export default function PostPage() {
   const [nextId, setNextId] = useState(100);
   const [focusStack, setFocusStack] = useState<string[]>([]);
   const [tradeOpen, setTradeOpen] = useState(false);
+  const [chartData, setChartData] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (post && post.price > 0) {
+      fetch(`/api/coins/info?postId=${post.id}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data?.onchain?.pricePerToken) {
+            const p = parseFloat(data.onchain.pricePerToken);
+            if (chartData.length === 0) setChartData([p]);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [post?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (post && comments.length === 0) {
@@ -551,7 +591,7 @@ export default function PostPage() {
           ) : (
             <div className="px-4 pb-4">
               <div className="rounded-xl bg-bg overflow-hidden">
-                <CoinChart data={agent.priceHistory} positive={positive} height={200} />
+                <CoinChart data={chartData.length > 0 ? chartData : (agent.priceHistory.length > 0 ? agent.priceHistory : [post.price || 0.0001])} positive={positive} height={200} />
               </div>
             </div>
           )}
