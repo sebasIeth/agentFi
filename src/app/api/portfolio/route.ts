@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     // Get all holdings from DB
     const holdings = await db.holding.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, tokens: { gt: 0 } },
       include: {
         post: {
           include: { author: true },

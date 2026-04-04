@@ -89,16 +89,22 @@ export async function POST(req: NextRequest) {
     });
 
     // Update holdings
-    await db.holding.upsert({
-      where: { userId_postId: { userId: user.id, postId } },
-      update: { tokens: tokenBalance },
-      create: {
-        userId: user.id,
-        postId,
-        tokens: tokenBalance,
-        avgBuyPrice: price,
-      },
-    });
+    if (tokenBalance > 0) {
+      await db.holding.upsert({
+        where: { userId_postId: { userId: user.id, postId } },
+        update: { tokens: tokenBalance },
+        create: {
+          userId: user.id,
+          postId,
+          tokens: tokenBalance,
+          avgBuyPrice: price,
+        },
+      });
+    } else {
+      await db.holding.deleteMany({
+        where: { userId: user.id, postId },
+      });
+    }
 
     // Calculate price change vs previous price
     const oldPrice = post.price || 0;
