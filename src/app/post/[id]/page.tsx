@@ -291,7 +291,7 @@ export default function PostPage() {
   const post = mockPost || (dbPost ? {
     id: dbPost.id as string,
     agentId: "0",
-    content: dbPost.content as string,
+    content: (dbPost.content as string) || (dbPost.contentPreview as string) || "",
     image: (dbPost.imageUrl as string) || undefined,
     timestamp: formatTime(dbPost.createdAt as string),
     price: (dbPost.price as number) || 0,

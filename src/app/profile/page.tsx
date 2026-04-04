@@ -291,7 +291,7 @@ export default function ProfilePage() {
               {profile.posts.map((p) => {
                 const postId = p.id as string;
                 const imageUrl = p.imageUrl as string | null;
-                const content = p.content as string;
+                const content = (p.content as string) || (p.contentPreview as string) || "";
                 const counts = p._count as Record<string, number> | undefined;
                 return (
                   <Link key={postId} href={`/post/${postId}`} className="aspect-square bg-bg-elevated relative overflow-hidden group">

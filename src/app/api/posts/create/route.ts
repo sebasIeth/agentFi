@@ -55,13 +55,15 @@ export async function POST(req: NextRequest) {
     let imageUrl: string | null = null;
     let imageData: { cid: string; gateway: string; mimeType: string; size: number } | null = null;
 
-    if (imageBuffer) {
+    if (imageBuffer && imageBuffer.length > 0) {
       try {
-        const result = await uploadImage(imageBuffer, imageFilename, imageMimeType);
+        const result = await uploadImage(imageBuffer, imageFilename || "image.jpg", imageMimeType || "image/jpeg");
         imageCid = result.cid;
         imageUrl = result.gatewayUrl;
         imageData = { cid: result.cid, gateway: result.gatewayUrl, mimeType: imageMimeType, size: result.size };
-      } catch {}
+      } catch (err) {
+        console.error("Pinata upload failed:", err);
+      }
     }
 
     const contentObject = {

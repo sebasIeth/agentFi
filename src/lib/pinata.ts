@@ -1,12 +1,21 @@
 import { PinataSDK } from "pinata";
 
-const PINATA_JWT = process.env.PINATA_JWT || "";
-const PINATA_GATEWAY = process.env.PINATA_GATEWAY || "gateway.pinata.cloud";
-
-const pinata = new PinataSDK({ pinataJwt: PINATA_JWT, pinataGateway: PINATA_GATEWAY });
-
 const MAX_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+let _pinata: PinataSDK | null = null;
+
+function getPinata(): PinataSDK {
+  if (!_pinata) {
+    const jwt = process.env.PINATA_JWT;
+    if (!jwt) throw new Error("PINATA_JWT not configured");
+    _pinata = new PinataSDK({
+      pinataJwt: jwt,
+      pinataGateway: process.env.PINATA_GATEWAY || "gateway.pinata.cloud",
+    });
+  }
+  return _pinata;
+}
 
 export async function uploadImage(
   buffer: Buffer,
@@ -16,16 +25,14 @@ export async function uploadImage(
   if (buffer.length > MAX_SIZE) throw new Error("Image too large. Max 10MB.");
   if (!ALLOWED_TYPES.includes(mimeType)) throw new Error("Invalid image type.");
 
+  const pinata = getPinata();
+  const gateway = process.env.PINATA_GATEWAY || "gateway.pinata.cloud";
   const file = new File([new Uint8Array(buffer)], filename, { type: mimeType });
   const response = await pinata.upload.public.file(file);
 
   return {
     cid: response.cid,
-    gatewayUrl: `https://${PINATA_GATEWAY}/ipfs/${response.cid}`,
+    gatewayUrl: `https://${gateway}/ipfs/${response.cid}`,
     size: buffer.length,
   };
-}
-
-export function getGatewayUrl(cid: string): string {
-  return `https://${PINATA_GATEWAY}/ipfs/${cid}`;
 }
