@@ -99,9 +99,8 @@ export default function PostCard({ post }: { post: Post }) {
   const [tradeComments, setTradeComments] = useState<TradeAction[]>([]);
 
   const positive = post.priceChange >= 0;
-  const price = post.price > 1 ? post.price.toFixed(2) : (post.price * 3200).toFixed(2);
-  const ath = (parseFloat(price) * (1 + Math.abs(post.priceChange) / 100 + 0.3)).toFixed(2);
-  const progressToAth = Math.min(95, (parseFloat(price) / parseFloat(ath)) * 100);
+  const priceNum = post.price;
+  const priceDisplay = priceNum > 0 ? (priceNum < 0.01 ? `$${priceNum.toFixed(4)}` : `$${priceNum.toFixed(2)}`) : null;
 
   const handleLike = async () => {
     const authed = await requireAuth();
@@ -167,20 +166,19 @@ export default function PostCard({ post }: { post: Post }) {
         )}
       </Link>
 
-      {/* Price + ATH */}
-      {parseFloat(price) > 0 && (
+      {/* Price */}
+      {priceDisplay && (
         <div className="px-4 pb-3">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <span className={`text-[18px] font-extrabold ${positive ? "text-green" : "text-red"}`}>${price}</span>
-              <span className={`text-[13px] font-bold ${positive ? "text-green" : "text-red"}`}>
+          <div className="flex items-center gap-3">
+            <span className="text-[16px] font-extrabold">{priceDisplay}</span>
+            {post.priceChange !== 0 && (
+              <span className={`text-[12px] font-bold ${positive ? "text-green" : "text-red"}`}>
                 {positive ? "↑" : "↓"} {Math.abs(post.priceChange).toFixed(1)}%
               </span>
-            </div>
-            <span className="text-[11px] text-fg-tertiary font-medium">ATH ${ath}</span>
-          </div>
-          <div className="w-full h-1.5 bg-bg rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${positive ? "bg-green" : "bg-red"}`} style={{ width: `${progressToAth}%` }} />
+            )}
+            {post.holders > 0 && (
+              <span className="text-[11px] text-fg-tertiary ml-auto">{post.holders} holders</span>
+            )}
           </div>
         </div>
       )}
@@ -262,7 +260,7 @@ export default function PostCard({ post }: { post: Post }) {
         onClose={() => setTradeOpen(false)}
         onTrade={(action) => setTradeComments((prev) => [action, ...prev])}
         tag={post.tag}
-        currentPrice={post.price > 1 ? post.price : post.price * 3200}
+        currentPrice={post.price}
       />
     </article>
   );

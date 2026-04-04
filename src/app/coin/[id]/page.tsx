@@ -37,7 +37,7 @@ const timeframes = ["1H", "1D", "1W", "1M", "1Y", "MAX"];
 interface CoinData {
   post: { id: string; tag: string; content: string; coinAddress: string | null; txHash: string | null; price: number; priceChange: number; holders: number; createdAt: string };
   author: { walletAddress: string; username: string | null; kind: string };
-  onchain: { coinAddress: string; price: string; marketCap: string; totalSupply: string; creator: string } | null;
+  onchain: { active: boolean; coinAddress?: string; price: string; pricePerToken: string; marketCap: string; marketCapUsdc: string; totalSupply: string; virtualUsdcReserve: string; virtualTokenReserve: string; realUsdcBalance: string; creator: string; holders: number; vaultAddress: string; poolId: string } | null;
   trades: Array<{ id: string; type: string; amount: number; tokens: number; comment: string | null; txHash: string | null; createdAt: string; user: { walletAddress: string; username: string | null } }>;
   holders: Array<{ walletAddress: string; username: string | null; tokens: number }>;
 }
@@ -92,10 +92,12 @@ export default function CoinPage() {
   const authorName = author.username || shortWallet;
   const authorImage = getAvatarUrl(authorWallet);
 
-  const price = onchain ? Number(onchain.price) : 0;
-  const marketCap = onchain ? Number(onchain.marketCap) : 0;
+  const priceUsdc = onchain?.pricePerToken ? parseFloat(onchain.pricePerToken) : 0;
+  const marketCapUsdc = onchain?.marketCapUsdc ? parseFloat(onchain.marketCapUsdc) : 0;
   const totalSupply = onchain ? Number(onchain.totalSupply) / 1e18 : 0;
-  const isLive = !!onchain && !!post.coinAddress;
+  const realUsdcBalance = onchain ? Number(onchain.realUsdcBalance) / 1e6 : 0;
+  const holdersCount = onchain?.holders ?? 0;
+  const isLive = !!onchain?.active;
 
   const handleCopy = () => {
     if (post.coinAddress) {
@@ -147,20 +149,42 @@ export default function CoinPage() {
         </div>
 
         {/* Key metrics */}
-        <div className="flex items-start justify-between px-4 pb-4">
-          <div>
-            <div className="text-[11px] text-fg-tertiary font-medium mb-0.5">Price</div>
-            <div className="text-[22px] font-extrabold tracking-tight leading-none">
-              {price > 0 ? price.toString() : "—"}
-            </div>
-            <div className="text-[11px] text-fg-tertiary mt-1">Base price (no buys yet)</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[11px] text-fg-tertiary font-medium mb-0.5">Supply</div>
+        <div className="grid grid-cols-2 gap-3 px-4 pb-4">
+          <div className="rounded-xl bg-bg-elevated border border-border p-3">
+            <div className="text-[11px] text-fg-tertiary font-medium mb-1">Price</div>
             <div className="text-[18px] font-extrabold tracking-tight">
-              {totalSupply > 0 ? totalSupply.toFixed(2) : "0"}
+              ${priceUsdc > 0 ? priceUsdc.toFixed(4) : "0.0000"}
             </div>
-            <div className="text-[11px] text-fg-tertiary mt-1">tokens minted</div>
+          </div>
+          <div className="rounded-xl bg-bg-elevated border border-border p-3">
+            <div className="text-[11px] text-fg-tertiary font-medium mb-1">Market cap</div>
+            <div className="text-[18px] font-extrabold tracking-tight">
+              ${marketCapUsdc > 0 ? marketCapUsdc.toFixed(2) : "0.00"}
+            </div>
+          </div>
+          <div className="rounded-xl bg-bg-elevated border border-border p-3">
+            <div className="text-[11px] text-fg-tertiary font-medium mb-1">Supply</div>
+            <div className="text-[18px] font-extrabold tracking-tight">
+              {totalSupply > 0 ? totalSupply.toLocaleString() : "0"}
+            </div>
+          </div>
+          <div className="rounded-xl bg-bg-elevated border border-border p-3">
+            <div className="text-[11px] text-fg-tertiary font-medium mb-1">Holders</div>
+            <div className="text-[18px] font-extrabold tracking-tight">
+              {holdersCount}
+            </div>
+          </div>
+          <div className="rounded-xl bg-bg-elevated border border-border p-3">
+            <div className="text-[11px] text-fg-tertiary font-medium mb-1">Liquidity</div>
+            <div className="text-[18px] font-extrabold tracking-tight">
+              ${realUsdcBalance.toFixed(2)}
+            </div>
+          </div>
+          <div className="rounded-xl bg-bg-elevated border border-border p-3">
+            <div className="text-[11px] text-fg-tertiary font-medium mb-1">Trades</div>
+            <div className="text-[18px] font-extrabold tracking-tight">
+              {trades.length}
+            </div>
           </div>
         </div>
 
@@ -203,7 +227,7 @@ export default function CoinPage() {
               className={`relative px-4 py-3 text-[13px] font-semibold capitalize transition-colors ${
                 activeTab === tab ? "text-fg" : "text-fg-tertiary hover:text-fg"
               }`}>
-              {tab === "holders" ? `Holders (${holders.length})` : tab === "activity" ? `Activity (${trades.length})` : tab}
+              {tab === "holders" ? `Holders (${holdersCount})` : tab === "activity" ? `Activity (${trades.length})` : tab}
               {activeTab === tab && <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-fg rounded-full" />}
             </button>
           ))}
@@ -343,7 +367,7 @@ export default function CoinPage() {
         open={tradeOpen}
         onClose={() => setTradeOpen(false)}
         tag={tag}
-        currentPrice={price}
+        currentPrice={priceUsdc}
       />
 
       <MobileNav />
