@@ -251,7 +251,7 @@ export default function TradeSheet({
               body: JSON.stringify({
                 walletAddress: user.walletAddress,
                 postId,
-                content: `${tab === "buy" ? "Bought" : "Sold"} ${tokenName} — ${comment.trim()}`,
+                content: `${tab === "buy" ? "Bought" : "Sold"} ${tokenAmount.toFixed(2)} ${tokenName} for $${numAmount.toFixed(2)} — ${comment.trim()}`,
               }),
             });
           } catch {}
