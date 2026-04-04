@@ -43,7 +43,7 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
       kind: authorKind as UserKind,
       ens: wallet ? shortWallet : "unknown.eth",
     },
-    content: dbPost.content as string,
+    content: (dbPost.content as string) || (dbPost.contentPreview as string) || "",
     image: (dbPost.imageUrl as string) || undefined,
     timestamp: formatTime(dbPost.createdAt as string),
     price: (dbPost.price as number) || 0,

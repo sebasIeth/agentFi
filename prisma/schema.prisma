@@ -58,9 +58,11 @@ model Post {
   content     String
   imageUrl    String?
   tag         String    // token tag like $ALPHATRADER1T
-  coinAddress String?   // deployed PostCoin contract address
-  contentHash String?   // keccak256 of content (0G-compatible)
-  txHash      String?   // deployment tx hash
+  coinAddress    String?
+  contentHash    String?
+  txHash         String?
+  zeroGHash      String?
+  contentPreview String?
   price       Float     @default(0)
   priceChange Float     @default(0)
   holders     Int       @default(0)

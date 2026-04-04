@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { keccak256, toHex } from "viem";
 import { publicClient, getBackendWallet, VAULT_ABI, getContractAddresses } from "@/lib/chain";
+import { uploadToZeroG } from "@/lib/zerog";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,7 +16,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
     }
 
-    // Upsert user
     const user = await db.user.upsert({
       where: { walletAddress: agentWallet.toLowerCase() },
       update: {},
@@ -24,72 +24,81 @@ export async function POST(req: NextRequest) {
 
     const agent = await db.agent.findFirst({ where: { ownerId: user.id } });
     const tokenTag = tag.startsWith("$") ? tag : `$${tag}`;
+    const contentPreview = content.slice(0, 280);
 
-    // Save post to DB first
+    let zeroGHash: string | null = null;
+    let contentHash: string;
+
+    try {
+      zeroGHash = await uploadToZeroG(content);
+      contentHash = zeroGHash;
+    } catch {
+      contentHash = keccak256(toHex(content));
+    }
+
     const post = await db.post.create({
       data: {
         authorId: user.id,
         agentId: agent?.id || null,
-        content,
+        content: zeroGHash ? null : content,
+        contentPreview,
         imageUrl: imageUrl || null,
         tag: tokenTag,
+        contentHash,
+        zeroGHash,
         price: 0,
         priceChange: 0,
         holders: 0,
       },
     });
 
-    // Create pool in Vault onchain
     const addresses = getContractAddresses();
-    const vaultAddress = addresses.vault;
+    const factoryAddress = process.env.POST_FACTORY_V2_ADDRESS || addresses.postFactory;
 
-    try {
-      const { account, client } = getBackendWallet();
+    if (addresses.vault) {
+      try {
+        const { account, client } = getBackendWallet();
+        const poolIdBytes = keccak256(toHex(post.id));
 
-      // Use the DB post ID as the onchain postId (padded to bytes32)
-      const postIdBytes = keccak256(toHex(post.id));
+        const txHash = await client.writeContract({
+          address: addresses.vault,
+          abi: VAULT_ABI,
+          functionName: "createPool",
+          args: [poolIdBytes, agentWallet as `0x${string}`],
+          account,
+        });
 
-      const txHash = await client.writeContract({
-        address: vaultAddress,
-        abi: VAULT_ABI,
-        functionName: "createPool",
-        args: [postIdBytes, agentWallet as `0x${string}`],
-        account,
-      });
+        await publicClient.waitForTransactionReceipt({ hash: txHash });
 
-      await publicClient.waitForTransactionReceipt({ hash: txHash });
+        const price = await publicClient.readContract({
+          address: addresses.vault,
+          abi: VAULT_ABI,
+          functionName: "getPrice",
+          args: [poolIdBytes],
+        });
 
-      // Read initial price
-      const price = await publicClient.readContract({
-        address: vaultAddress,
-        abi: VAULT_ABI,
-        functionName: "getPrice",
-        args: [postIdBytes],
-      });
+        await db.post.update({
+          where: { id: post.id },
+          data: {
+            coinAddress: addresses.vault,
+            contentHash: poolIdBytes,
+            txHash,
+            price: Number(price) / 1e6,
+            holders: 1,
+          },
+        });
 
-      // Update post with onchain data
-      await db.post.update({
-        where: { id: post.id },
-        data: {
-          coinAddress: vaultAddress,
-          contentHash: postIdBytes,
-          txHash,
-          price: Number(price) / 1e6, // USDC decimals
-          holders: 1, // creator
-        },
-      });
-
-      return NextResponse.json({
-        post: { ...post, txHash, coinAddress: vaultAddress },
-        onchain: true,
-        poolId: postIdBytes,
-      });
-    } catch (err) {
-      console.error("Vault createPool failed:", err);
-      return NextResponse.json({ post, onchain: false });
+        return NextResponse.json({
+          post: { ...post, txHash, coinAddress: addresses.vault },
+          onchain: true,
+          zeroG: !!zeroGHash,
+          poolId: poolIdBytes,
+        });
+      } catch {}
     }
+
+    return NextResponse.json({ post, onchain: false, zeroG: !!zeroGHash });
   } catch (error) {
-    console.error("Create post error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 },
