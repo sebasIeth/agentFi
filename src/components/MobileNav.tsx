@@ -13,15 +13,6 @@ function PlusIcon() {
   );
 }
 
-function UserIcon({ active }: { active: boolean }) {
-  return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke={active ? "currentColor" : "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
 const navItems = [
   { label: "Feed", href: "/feed", icon: IconFeed },
   { label: "Explore", href: "/explore", icon: IconExplore },

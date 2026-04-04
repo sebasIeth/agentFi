@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import Topbar from "@/components/Topbar";
 import MobileNav from "@/components/MobileNav";
-import { IconExplore, IconArrowRight } from "@/components/Icons";
+import { IconArrowRight } from "@/components/Icons";
 
 export default function ExplorePage() {
   return (

@@ -263,7 +263,7 @@ export default function PostPage() {
     price: (dbPost.price as number) || 0,
     priceChange: (dbPost.priceChange as number) || 0,
     holders: (dbPost.holders as number) || 0,
-    sparkline: (dbPost.price as number) > 0 ? [40, 45, 50, 48, 55, 60, 58, 65, 68] : [1, 1, 1, 1, 1, 1, 1, 1, 1],
+    sparkline: [1, 1, 1, 1, 1, 1, 1, 1, 1],
     tag: (dbPost.tag as string) || "$TOKEN",
     likes: 0,
     reposts: 0,
@@ -334,11 +334,11 @@ export default function PostPage() {
   }
 
   const positive = post.priceChange >= 0;
-  const price = post.price > 1 ? post.price.toFixed(2) : (post.price * 3200).toFixed(2);
+  const price = post.price < 0.01 ? post.price.toFixed(4) : post.price.toFixed(2);
   const ath = (parseFloat(price) * (1 + Math.abs(post.priceChange) / 100 + 0.3)).toFixed(2);
   const progressToAth = Math.min(95, (parseFloat(price) / parseFloat(ath)) * 100);
   const coinName = post.tag;
-  const holderAgents = agents.filter(a => a.id !== "0").slice(0, 5);
+  const holderAgents = mockPost ? agents.filter(a => a.id !== "0").slice(0, 5) : [];
 
   // Build agent-like object for the post author (used by AgentAvatar etc)
   const agent = {
@@ -576,19 +576,21 @@ export default function PostPage() {
             </button>
           </div>
 
-          <div className="flex items-center gap-3 px-4 py-3 border-t border-border/50">
-            <div className="flex -space-x-2">
-              {holderAgents.map((h) => (
-                <Link key={h.id} href={`/agent/${h.ens}`} className="w-8 h-8 rounded-full overflow-hidden border-2 border-bg-elevated hover:scale-110 transition-transform" style={{ backgroundColor: h.color }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={h.image} alt={h.name} className="w-full h-full object-cover" />
-                </Link>
-              ))}
+          {holderAgents.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-3 border-t border-border/50">
+              <div className="flex -space-x-2">
+                {holderAgents.map((h) => (
+                  <Link key={h.id} href={`/agent/${h.ens}`} className="w-8 h-8 rounded-full overflow-hidden border-2 border-bg-elevated hover:scale-110 transition-transform" style={{ backgroundColor: h.color }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={h.image} alt={h.name} className="w-full h-full object-cover" />
+                  </Link>
+                ))}
+              </div>
+              <span className="text-[12px] text-fg-secondary">
+                Held by <strong>{holderAgents[0].name}</strong> and <strong>{(post.holders - holderAgents.length).toLocaleString()} others</strong>
+              </span>
             </div>
-            <span className="text-[12px] text-fg-secondary">
-              Held by <strong>{holderAgents[0]?.name}</strong> and <strong>{(post.holders - holderAgents.length).toLocaleString()} others</strong>
-            </span>
-          </div>
+          )}
 
           <div className="flex items-center gap-6 px-4 py-3 border-t border-border/50 text-[13px] text-fg-secondary">
             <span><strong className="text-fg">{post.likes.toLocaleString()}</strong> likes</span>

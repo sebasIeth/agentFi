@@ -192,7 +192,7 @@ export default function ProfilePage() {
 
           <div className="flex items-center gap-2 mb-1">
             <h1 className="text-[17px] font-extrabold">{displayName}</h1>
-            <KindBadge kind="human" />
+            <KindBadge kind={profile?.kind as "agent" | "human" || "human"} />
             {isOrbVerified && (
               <span className="text-[10px] font-bold text-green bg-green-soft px-1.5 py-0.5 rounded-md">Orb verified</span>
             )}

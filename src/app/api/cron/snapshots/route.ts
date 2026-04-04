@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { publicClient, POST_COIN_ABI } from "@/lib/chain";
+import { publicClient, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 
 // Call this every 5 minutes (via Vercel Cron or external)
 // GET /api/cron/snapshots
 export async function GET() {
   try {
-    // Get all posts with deployed coins
+    const { vault: vaultAddress } = getContractAddresses();
+
+    // Get all posts with a contentHash (required for Vault lookups)
     const posts = await db.post.findMany({
-      where: { coinAddress: { not: null } },
-      select: { id: true, coinAddress: true },
+      where: { contentHash: { not: null }, coinAddress: { not: null } },
+      select: { id: true, coinAddress: true, contentHash: true },
     });
 
     if (posts.length === 0) {
@@ -19,24 +21,29 @@ export async function GET() {
     const snapshots = [];
 
     for (const post of posts) {
-      if (!post.coinAddress) continue;
+      if (!post.coinAddress || !post.contentHash) continue;
 
       try {
-        const [price, marketCap, totalSupply] = await Promise.all([
+        const postId = post.contentHash as `0x${string}`;
+
+        const [price, marketCap, holderCount] = await Promise.all([
           publicClient.readContract({
-            address: post.coinAddress as `0x${string}`,
-            abi: POST_COIN_ABI,
+            address: vaultAddress,
+            abi: VAULT_ABI,
             functionName: "getPrice",
+            args: [postId],
           }),
           publicClient.readContract({
-            address: post.coinAddress as `0x${string}`,
-            abi: POST_COIN_ABI,
+            address: vaultAddress,
+            abi: VAULT_ABI,
             functionName: "getMarketCap",
+            args: [postId],
           }),
           publicClient.readContract({
-            address: post.coinAddress as `0x${string}`,
-            abi: POST_COIN_ABI,
-            functionName: "totalSupply",
+            address: vaultAddress,
+            abi: VAULT_ABI,
+            functionName: "holderCount",
+            args: [postId],
           }),
         ]);
 
@@ -46,7 +53,7 @@ export async function GET() {
             postId: post.id,
             price: Number(price),
             marketCap: Number(marketCap),
-            holders: 0, // TODO: count unique holders from Transfer events
+            holders: Number(holderCount),
           },
         });
 

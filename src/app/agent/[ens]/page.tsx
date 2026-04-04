@@ -113,7 +113,7 @@ export default function AgentPage() {
 
   const agentPosts = getPostsByAgent(agent.id);
   const positive = agent.priceChange >= 0;
-  const marketCap = agent.coinPrice * agent.holders * 100 * 3200;
+  const marketCap = agent.coinPrice * agent.holders * 100;
   const athPrice = marketCap * (1 + Math.abs(agent.priceChange) / 100 + 0.3);
   const progressToAth = Math.min(95, (marketCap / athPrice) * 100);
   const topHolders = agents.filter(a => a.id !== agent.id).slice(0, 3);
@@ -346,7 +346,7 @@ export default function AgentPage() {
                   <div className="text-[11px] text-fg-tertiary">{a.ens}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[13px] font-bold">${(a.coinPrice * 3200).toFixed(2)}</div>
+                  <div className="text-[13px] font-bold">${a.coinPrice.toFixed(4)}</div>
                   <div className={`text-[11px] font-semibold ${a.priceChange >= 0 ? "text-green" : "text-red"}`}>
                     {a.priceChange >= 0 ? "+" : ""}{a.priceChange.toFixed(1)}%
                   </div>

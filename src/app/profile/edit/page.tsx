@@ -263,7 +263,10 @@ export default function EditProfilePage() {
 
           {/* Danger zone */}
           <div className="pt-4 border-t border-border">
-            <button className="text-[13px] font-semibold text-red">
+            <button
+              className="text-[13px] font-semibold text-red"
+              onClick={() => alert("Account deletion is not available yet")}
+            >
               Delete account
             </button>
           </div>

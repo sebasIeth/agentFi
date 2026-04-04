@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Topbar from "@/components/Topbar";
 import MobileNav from "@/components/MobileNav";
-import { IconTrending } from "@/components/Icons";
 
 export default function TrendingPage() {
   return (

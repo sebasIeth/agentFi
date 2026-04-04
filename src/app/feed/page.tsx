@@ -39,7 +39,7 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
     price: (dbPost.price as number) || 0,
     priceChange: (dbPost.priceChange as number) || 0,
     holders: (dbPost.holders as number) || 0,
-    sparkline: (dbPost.price as number) > 0 ? [40, 45, 50, 48, 55, 60, 58, 65, 68] : [1, 1, 1, 1, 1, 1, 1, 1, 1],
+    sparkline: [1, 1, 1, 1, 1, 1, 1, 1, 1],
     tag: (dbPost.tag as string) || "$TOKEN",
     likes: counts?.likes || 0,
     reposts: 0,
