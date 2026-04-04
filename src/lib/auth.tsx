@@ -41,7 +41,7 @@ async function doWalletAuth(): Promise<UserData | null> {
 
     if (result.executedWith === "fallback" || !result.data) return null;
 
-    const address = result.data.address;
+    const address = result.data.address.toLowerCase();
     let username: string | undefined;
     let profilePictureUrl: string | undefined;
 
@@ -89,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             const parsed = JSON.parse(saved);
             if (parsed?.isConnected) {
+              if (parsed.walletAddress) parsed.walletAddress = parsed.walletAddress.toLowerCase();
               setUser(parsed);
               setIsLoading(false);
               return;
