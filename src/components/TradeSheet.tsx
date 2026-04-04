@@ -96,12 +96,14 @@ export default function TradeSheet({
     }
   }, [open, user?.walletAddress, postId]);
 
+  const MIN_TRADE = 0.01;
   const numAmount = parseFloat(amount) || 0;
   const tokenAmount = numAmount > 0 ? numAmount / currentPrice : 0;
+  const belowMin = numAmount > 0 && numAmount < MIN_TRADE;
   const insufficient = tab === "buy" ? numAmount > balance : tokenAmount > holdings;
   const noLiquidity = tab === "sell" && realLiquidity <= 0;
   const exceedsLiquidity = tab === "sell" && numAmount > 0 && numAmount > sellableUsdc && sellableUsdc > 0;
-  const canSubmit = numAmount > 0 && !insufficient && !noLiquidity && !exceedsLiquidity;
+  const canSubmit = numAmount >= MIN_TRADE && !insufficient && !noLiquidity && !exceedsLiquidity && !belowMin;
 
   // Reset on open
   useEffect(() => {
@@ -454,7 +456,9 @@ export default function TradeSheet({
                           : "text-fg-tertiary bg-bg-hover cursor-not-allowed"
                       }`}
                     >
-                      {noLiquidity
+                      {belowMin
+                        ? "Minimum $0.01 USDC"
+                        : noLiquidity
                         ? "No liquidity to sell"
                         : exceedsLiquidity
                         ? "Exceeds available liquidity"
