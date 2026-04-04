@@ -225,7 +225,7 @@ export default function TradeSheet({
                         type="text"
                         inputMode="decimal"
                         value={amount}
-                        onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                        onChange={(e) => setAmount(e.target.value.replace(",", ".").replace(/[^0-9.]/g, ""))}
                         placeholder="0.00"
                         className={`text-[28px] font-extrabold bg-transparent outline-none w-full ${
                           insufficient ? "text-red" : "text-fg"
