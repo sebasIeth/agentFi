@@ -25,7 +25,7 @@ function UserIcon({ active }: { active: boolean }) {
 const navItems = [
   { label: "Feed", href: "/feed", icon: IconFeed },
   { label: "Explore", href: "/explore", icon: IconExplore },
-  { label: "create", href: "/onboarding", icon: null },
+  { label: "create", href: "/create", icon: null },
   { label: "Trending", href: "/trending", icon: IconTrending },
   { label: "Portfolio", href: "/portfolio", icon: IconPortfolio },
 ];
