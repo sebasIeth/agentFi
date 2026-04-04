@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { keccak256, toHex } from "viem";
-import { publicClient, getBackendWallet, POST_FACTORY_ABI, getContractAddresses } from "@/lib/chain";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,71 +10,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    const addresses = getContractAddresses();
-    if (!addresses.postFactory) {
-      return NextResponse.json({ error: "Contracts not deployed" }, { status: 503 });
-    }
-
-    // Find agent in DB
-    const agent = await db.agent.findFirst({
-      where: { ownerId: { not: undefined } },
-      include: { owner: true },
+    // Upsert user by wallet
+    const user = await db.user.upsert({
+      where: { walletAddress: agentWallet.toLowerCase() },
+      update: {},
+      create: { walletAddress: agentWallet.toLowerCase(), kind: "human" },
     });
 
-    if (!agent) {
-      return NextResponse.json({ error: "Agent not found" }, { status: 404 });
-    }
+    // Check if user has an agent
+    const agent = await db.agent.findFirst({
+      where: { ownerId: user.id },
+    });
 
-    // Content hash for onchain
+    // Content hash (compatible with 0G phase 2)
     const contentHash = keccak256(toHex(content));
 
-    // Save post to DB first
+    // Save post to DB
     const post = await db.post.create({
       data: {
-        authorId: agent.ownerId,
-        agentId: agent.id,
+        authorId: user.id,
+        agentId: agent?.id || null,
         content,
-        imageUrl,
-        tag,
+        imageUrl: imageUrl || null,
+        tag: tag.startsWith("$") ? tag : `$${tag}`,
+        contentHash,
         price: 0,
         priceChange: 0,
         holders: 0,
       },
     });
 
-    // Deploy PostCoin onchain
-    const ticker = tag.replace("$", "");
-    const { account, client } = getBackendWallet();
-
-    const txHash = await client.writeContract({
-      address: addresses.postFactory,
-      abi: POST_FACTORY_ABI,
-      functionName: "createPost",
-      args: [agentWallet as `0x${string}`, contentHash, ticker],
-      account,
-    });
-
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-
-    // Get coin address from factory
-    const coinAddress = await publicClient.readContract({
-      address: addresses.postFactory,
-      abi: POST_FACTORY_ABI,
-      functionName: "getCoinByHash",
-      args: [contentHash],
-    });
-
-    return NextResponse.json({
-      post,
-      coinAddress,
-      txHash,
-      blockNumber: receipt.blockNumber.toString(),
-    });
+    return NextResponse.json({ post });
   } catch (error) {
     console.error("Create post error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
