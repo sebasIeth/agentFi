@@ -85,7 +85,7 @@ interface DbProfile {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isMiniApp, signIn } = useAuth();
+  const { user, isMiniApp, signIn, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<"posts" | "holdings" | "activity">("posts");
   const [copied, setCopied] = useState(false);
   const [profile, setProfile] = useState<DbProfile | null>(null);
@@ -256,7 +256,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-3">
             <Link href="/profile/edit" className="flex-1 flex items-center justify-center gap-1.5 text-[13px] font-bold text-fg border border-border hover:bg-bg-hover rounded-xl py-2.5 transition-colors">
               <EditIcon /> Edit profile
             </Link>
@@ -264,6 +264,13 @@ export default function ProfilePage() {
               Manage agent <IconArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
+
+          <button
+            onClick={() => { signOut(); router.push("/feed"); }}
+            className="w-full text-[13px] font-semibold text-red hover:bg-red-soft rounded-xl py-2.5 transition-colors"
+          >
+            Sign out
+          </button>
         </div>
 
         {/* Tabs */}
