@@ -1,44 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { publicClient, POST_COIN_ABI } from "@/lib/chain";
+import { keccak256, toHex } from "viem";
+import { publicClient, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 
-// Called after frontend confirms tx via MiniKit.sendTransaction()
+// Called after MiniKit.sendTransaction() completes
 export async function POST(req: NextRequest) {
   try {
-    const { walletAddress, postId, coinAddress, txHash, type } = await req.json();
+    const { walletAddress, postId, txHash, type, usdcAmount } = await req.json();
 
-    if (!walletAddress || !postId || !coinAddress || !txHash || !type) {
+    if (!walletAddress || !postId || !type) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    // Wait for receipt
-    const receipt = await publicClient.waitForTransactionReceipt({
-      hash: txHash as `0x${string}`,
-    });
+    const addresses = getContractAddresses();
 
-    if (receipt.status !== "success") {
-      return NextResponse.json({ error: "Transaction failed" }, { status: 400 });
+    // Get post to find poolId
+    const post = await db.post.findUnique({ where: { id: postId } });
+    if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
+
+    const poolId = (post.contentHash || keccak256(toHex(postId))) as `0x${string}`;
+
+    // Read current state from Vault (don't wait for receipt — userOpHash != txHash)
+    let tokenBalance = 0;
+    let price = 0;
+    let totalSupply = 0;
+    let holders = 0;
+
+    try {
+      const [bal, p, pool, h] = await Promise.all([
+        publicClient.readContract({
+          address: addresses.vault,
+          abi: VAULT_ABI,
+          functionName: "balanceOf",
+          args: [poolId, walletAddress as `0x${string}`],
+        }),
+        publicClient.readContract({
+          address: addresses.vault,
+          abi: VAULT_ABI,
+          functionName: "getPrice",
+          args: [poolId],
+        }),
+        publicClient.readContract({
+          address: addresses.vault,
+          abi: VAULT_ABI,
+          functionName: "getPool",
+          args: [poolId],
+        }),
+        publicClient.readContract({
+          address: addresses.vault,
+          abi: VAULT_ABI,
+          functionName: "holderCount",
+          args: [poolId],
+        }),
+      ]);
+
+      tokenBalance = Number(bal) / 1e18;
+      price = Number(p) / 1e6;
+      const poolData = pool as { totalSupply: bigint };
+      totalSupply = Number(poolData.totalSupply) / 1e18;
+      holders = Number(h);
+    } catch (err) {
+      console.error("Vault read after trade:", err);
     }
-
-    // Read updated balances from chain
-    const [balance, price, totalSupply] = await Promise.all([
-      publicClient.readContract({
-        address: coinAddress as `0x${string}`,
-        abi: POST_COIN_ABI,
-        functionName: "balanceOf",
-        args: [walletAddress as `0x${string}`],
-      }),
-      publicClient.readContract({
-        address: coinAddress as `0x${string}`,
-        abi: POST_COIN_ABI,
-        functionName: "getPrice",
-      }),
-      publicClient.readContract({
-        address: coinAddress as `0x${string}`,
-        abi: POST_COIN_ABI,
-        functionName: "totalSupply",
-      }),
-    ]);
 
     // Upsert user
     const user = await db.user.upsert({
@@ -47,51 +70,51 @@ export async function POST(req: NextRequest) {
       create: { walletAddress: walletAddress.toLowerCase(), kind: "human" },
     });
 
-    // Save trade
+    // Save trade to DB
     const trade = await db.trade.create({
       data: {
         userId: user.id,
         postId,
         type,
-        amount: 0, // TODO: parse from tx logs
-        tokens: Number(balance) / 1e18,
-        txHash,
+        amount: usdcAmount || 0,
+        tokens: tokenBalance,
+        txHash: txHash || null,
       },
     });
 
     // Update holdings
     await db.holding.upsert({
       where: { userId_postId: { userId: user.id, postId } },
-      update: {
-        tokens: Number(balance) / 1e18,
-      },
+      update: { tokens: tokenBalance },
       create: {
         userId: user.id,
         postId,
-        tokens: Number(balance) / 1e18,
-        avgBuyPrice: Number(price),
+        tokens: tokenBalance,
+        avgBuyPrice: price,
       },
     });
 
-    // Update post price
+    // Update post with latest price and holder count
     await db.post.update({
       where: { id: postId },
       data: {
-        price: Number(price),
+        price,
+        holders,
       },
     });
 
     return NextResponse.json({
       trade,
-      balance: balance.toString(),
-      price: price.toString(),
-      totalSupply: totalSupply.toString(),
+      tokenBalance,
+      price,
+      totalSupply,
+      holders,
     });
   } catch (error) {
     console.error("Confirm trade error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

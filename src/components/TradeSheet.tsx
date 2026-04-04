@@ -212,9 +212,9 @@ export default function TradeSheet({
               body: JSON.stringify({
                 walletAddress: user?.walletAddress,
                 postId,
-                coinAddress: data.transactions[data.transactions.length - 1]?.to,
                 txHash: result.data.userOpHash,
                 type: tab,
+                usdcAmount: numAmount,
               }),
             });
           } catch {
