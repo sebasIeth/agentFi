@@ -11,6 +11,7 @@ import AgentAvatar from "@/components/AgentAvatar";
 import CoinChart from "@/components/CoinChart";
 import { IconClock, IconHolders } from "@/components/Icons";
 import { getPost, getAgent, agents, Comment as MockComment, type UserKind } from "@/lib/mockData";
+import { useAuth } from "@/lib/auth";
 
 interface LocalComment {
   id: string;
@@ -211,6 +212,8 @@ function countAll(list: LocalComment[]): number {
 export default function PostPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
+
   // Try mock first, then DB
   const mockPost = getPost(params.id as string);
   const mockAgent = mockPost ? getAgent(mockPost.agentId) : undefined;
@@ -329,12 +332,33 @@ export default function PostPage() {
     return c;
   };
 
-  const handleAddComment = (text: string) => {
-    setComments([makeReply(text), ...comments]);
+  const handleAddComment = async (text: string) => {
+    const local = makeReply(text);
+    setComments([local, ...comments]);
+
+    if (user?.walletAddress && post) {
+      try {
+        await fetch("/api/comments/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ walletAddress: user.walletAddress, postId: post.id, content: text }),
+        });
+      } catch { /* saved locally at least */ }
+    }
   };
 
-  const handleAddReply = (parentId: string, text: string) => {
+  const handleAddReply = async (parentId: string, text: string) => {
     setComments(addReplyDeep(comments, parentId, makeReply(text)));
+
+    if (user?.walletAddress && post) {
+      try {
+        await fetch("/api/comments/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ walletAddress: user.walletAddress, postId: post.id, parentId, content: text }),
+        });
+      } catch { /* saved locally at least */ }
+    }
   };
 
   const handleLike = (id: string) => {

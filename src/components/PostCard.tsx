@@ -8,6 +8,7 @@ import KindBadge from "./KindBadge";
 import Sparkline from "./Sparkline";
 import TradeSheet, { TradeAction } from "./TradeSheet";
 import { sharePost, haptic } from "@/lib/minikit";
+import { useAuth } from "@/lib/auth";
 
 function formatCount(n: number): string {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
@@ -60,15 +61,16 @@ function DotsIcon() {
 }
 
 const defaultAgent: Agent = {
-  id: "0", kind: "agent", name: "Agent", ens: "agent.yap.eth",
-  type: "trader", avatar: "AG",
+  id: "0", kind: "human", name: "User", ens: "user.eth",
+  type: "user", avatar: "US",
   image: "https://api.dicebear.com/9.x/notionists/svg?seed=default&backgroundColor=b6e3f4",
   color: "#378ADD", verified: true, postsToday: 0, totalPosts: 0,
   holders: 0, totalVolume: "$0", coinPrice: 0, priceChange: 0, priceHistory: [],
 };
 
 export default function PostCard({ post }: { post: Post }) {
-  // Use embedded author data if available (DB posts), fallback to mock lookup
+  const { user } = useAuth();
+
   const mockAgent = getAgent(post.agentId);
   const agent: Agent = mockAgent || (post.author ? {
     ...defaultAgent,
@@ -79,31 +81,55 @@ export default function PostCard({ post }: { post: Post }) {
     ens: post.author.ens,
   } : defaultAgent);
 
+  // Is this my own post?
+  const isOwnPost = user?.walletAddress &&
+    (agent.ens.toLowerCase().includes(user.walletAddress.slice(0, 6).toLowerCase()) ||
+     post.author?.ens.toLowerCase().includes(user.walletAddress.slice(0, 6).toLowerCase()));
+
   const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(post.likes);
   const [tradeOpen, setTradeOpen] = useState(false);
   const [tradeComments, setTradeComments] = useState<TradeAction[]>([]);
 
   const positive = post.priceChange >= 0;
   const price = post.price > 1 ? post.price.toFixed(2) : (post.price * 3200).toFixed(2);
-  const ath = (post.price * 3200 * (1 + Math.abs(post.priceChange) / 100 + 0.3)).toFixed(2);
+  const ath = (parseFloat(price) * (1 + Math.abs(post.priceChange) / 100 + 0.3)).toFixed(2);
   const progressToAth = Math.min(95, (parseFloat(price) / parseFloat(ath)) * 100);
-  const coinName = post.tag.replace("$", "");
 
-  const holderAgents = agents.length > 0 ? agents.filter(a => a.id !== agent.id).slice(0, 3) : [];
-  const otherHolders = Math.max(0, post.holders - holderAgents.length);
+  const handleLike = async () => {
+    haptic("impact", "light");
+    const newLiked = !liked;
+    setLiked(newLiked);
+    setLikeCount((c) => c + (newLiked ? 1 : -1));
+
+    if (user?.walletAddress) {
+      try {
+        const res = await fetch("/api/likes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ walletAddress: user.walletAddress, postId: post.id }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setLiked(data.liked);
+          setLikeCount(data.count);
+        }
+      } catch {
+        // Revert on error
+        setLiked(!newLiked);
+        setLikeCount((c) => c + (newLiked ? -1 : 1));
+      }
+    }
+  };
 
   return (
     <article className="bg-bg-elevated rounded-2xl border border-border overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-        <Link href={`/agent/${agent.ens}`}>
-          <AgentAvatar agent={agent} size="lg" />
-        </Link>
+        <AgentAvatar agent={agent} size="lg" showFollow={!isOwnPost} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <Link href={`/agent/${agent.ens}`} className="text-[14px] font-bold hover:text-accent transition-colors">
-              {agent.name}
-            </Link>
+            <span className="text-[14px] font-bold">{agent.name}</span>
             <KindBadge kind={agent.kind} />
           </div>
           <span className="text-[12px] text-fg-tertiary">{post.timestamp}</span>
@@ -116,21 +142,13 @@ export default function PostCard({ post }: { post: Post }) {
       {/* Content */}
       <Link href={`/post/${post.id}`} className="block">
         <div className="px-4 pb-3">
-          <p className="text-[15px] leading-[1.7] text-fg/90">
-            {post.content}
-          </p>
+          <p className="text-[15px] leading-[1.7] text-fg/90">{post.content}</p>
         </div>
-
-        {/* Image or chart */}
         {post.image ? (
           <div className="px-4 pb-4">
             <div className="rounded-xl overflow-hidden bg-bg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={post.image}
-                alt=""
-                className="w-full h-auto object-cover max-h-[360px]"
-              />
+              <img src={post.image} alt="" className="w-full h-auto object-cover max-h-[360px]" />
             </div>
           </div>
         ) : (
@@ -142,41 +160,35 @@ export default function PostCard({ post }: { post: Post }) {
         )}
       </Link>
 
-      {/* Price + ATH bar */}
-      <div className="px-4 pb-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className={`text-[18px] font-extrabold ${positive ? "text-green" : "text-red"}`}>
-              ${price}
-            </span>
-            <span className={`text-[13px] font-bold ${positive ? "text-green" : "text-red"}`}>
-              {positive ? "↑" : "↓"} {Math.abs(post.priceChange).toFixed(1)}%
-            </span>
+      {/* Price + ATH */}
+      {parseFloat(price) > 0 && (
+        <div className="px-4 pb-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className={`text-[18px] font-extrabold ${positive ? "text-green" : "text-red"}`}>${price}</span>
+              <span className={`text-[13px] font-bold ${positive ? "text-green" : "text-red"}`}>
+                {positive ? "↑" : "↓"} {Math.abs(post.priceChange).toFixed(1)}%
+              </span>
+            </div>
+            <span className="text-[11px] text-fg-tertiary font-medium">ATH ${ath}</span>
           </div>
-          <span className="text-[11px] text-fg-tertiary font-medium">ATH ${ath}</span>
+          <div className="w-full h-1.5 bg-bg rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${positive ? "bg-green" : "bg-red"}`} style={{ width: `${progressToAth}%` }} />
+          </div>
         </div>
-        <div className="w-full h-1.5 bg-bg rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${positive ? "bg-green" : "bg-red"}`}
-            style={{ width: `${progressToAth}%` }}
-          />
-        </div>
-      </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
         <div className="flex items-center gap-5">
           <button
-            onClick={() => { setLiked(!liked); haptic("impact", "light"); }}
+            onClick={handleLike}
             className={`flex items-center gap-1.5 transition-colors ${liked ? "text-red" : "text-fg-tertiary hover:text-red"}`}
           >
             <LikeIcon filled={liked} />
-            <span className="text-[12px] font-semibold">{formatCount(post.likes + (liked ? 1 : 0))}</span>
+            <span className="text-[12px] font-semibold">{formatCount(likeCount)}</span>
           </button>
-          <Link
-            href={`/post/${post.id}`}
-            className="flex items-center gap-1.5 text-fg-tertiary hover:text-accent transition-colors"
-          >
+          <Link href={`/post/${post.id}`} className="flex items-center gap-1.5 text-fg-tertiary hover:text-accent transition-colors">
             <CommentIcon />
             <span className="text-[12px] font-semibold">{post.comments.length}</span>
           </Link>
@@ -196,23 +208,13 @@ export default function PostCard({ post }: { post: Post }) {
       </div>
 
       {/* Holders */}
-      <div className="flex items-center gap-3 px-4 py-3 border-t border-border/50">
-        <div className="flex -space-x-2">
-          {holderAgents.map((h) => (
-            <div
-              key={h.id}
-              className="w-7 h-7 rounded-full overflow-hidden border-2 border-bg-elevated"
-              style={{ backgroundColor: h.color }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={h.image} alt={h.name} className="w-full h-full object-cover" />
-            </div>
-          ))}
+      {post.holders > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 border-t border-border/50">
+          <span className="text-[12px] text-fg-secondary">
+            <strong>{post.holders.toLocaleString()}</strong> holders
+          </span>
         </div>
-        <span className="text-[12px] text-fg-secondary">
-          Held by <strong>{holderAgents[0]?.name}</strong> and <strong>{otherHolders.toLocaleString()} others</strong>
-        </span>
-      </div>
+      )}
 
       {/* Trade comments */}
       {tradeComments.length > 0 && (
@@ -253,7 +255,7 @@ export default function PostCard({ post }: { post: Post }) {
         onClose={() => setTradeOpen(false)}
         onTrade={(action) => setTradeComments((prev) => [action, ...prev])}
         tag={post.tag}
-        currentPrice={post.price * 3200}
+        currentPrice={post.price > 1 ? post.price : post.price * 3200}
       />
     </article>
   );
