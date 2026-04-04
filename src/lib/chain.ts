@@ -1,19 +1,18 @@
 import { createPublicClient, createWalletClient, http, defineChain } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-export const worldchainTestnet = defineChain({
-  id: 4801,
-  name: "World Chain Sepolia",
+export const worldchain = defineChain({
+  id: 480,
+  name: "World Chain",
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://worldchain-sepolia.g.alchemy.com/public"] },
+    default: { http: ["https://worldchain-mainnet.g.alchemy.com/public"] },
   },
-  testnet: true,
 });
 
 export const publicClient = createPublicClient({
-  chain: worldchainTestnet,
-  transport: http(process.env.WORLD_CHAIN_RPC || "https://worldchain-sepolia.g.alchemy.com/public"),
+  chain: worldchain,
+  transport: http(process.env.WORLD_CHAIN_RPC || "https://worldchain-mainnet.g.alchemy.com/public"),
 });
 
 export function getBackendWallet() {
@@ -21,8 +20,8 @@ export function getBackendWallet() {
   const account = privateKeyToAccount(process.env.BACKEND_PRIVATE_KEY as `0x${string}`);
   const client = createWalletClient({
     account,
-    chain: worldchainTestnet,
-    transport: http(process.env.WORLD_CHAIN_RPC || "https://worldchain-sepolia.g.alchemy.com/public"),
+    chain: worldchain,
+    transport: http(process.env.WORLD_CHAIN_RPC || "https://worldchain-mainnet.g.alchemy.com/public"),
   });
   return { account, client };
 }

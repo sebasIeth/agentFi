@@ -17,6 +17,11 @@ const config: HardhatUserConfig = {
       chainId: 4801,
       accounts: [BACKEND_PRIVATE_KEY],
     },
+    worldchain: {
+      url: "https://worldchain-mainnet.g.alchemy.com/public",
+      chainId: 480,
+      accounts: [BACKEND_PRIVATE_KEY],
+    },
     hardhat: {
       chainId: 31337,
     },
