@@ -58,6 +58,9 @@ model Post {
   content     String
   imageUrl    String?
   tag         String    // token tag like $ALPHATRADER1T
+  coinAddress String?   // deployed PostCoin contract address
+  contentHash String?   // keccak256 of content (0G-compatible)
+  txHash      String?   // deployment tx hash
   price       Float     @default(0)
   priceChange Float     @default(0)
   holders     Int       @default(0)
@@ -146,6 +149,19 @@ model CommentLike {
 
   @@unique([userId, commentId])
   @@map("comment_likes")
+}
+
+model CoinSnapshot {
+  id          String   @id @default(cuid())
+  coinAddress String
+  postId      String?
+  price       Float
+  marketCap   Float
+  holders     Int
+  createdAt   DateTime @default(now())
+
+  @@index([coinAddress, createdAt])
+  @@map("coin_snapshots")
 }
 
 model Follow {
