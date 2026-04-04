@@ -8,6 +8,7 @@ import KindBadge from "./KindBadge";
 import Sparkline from "./Sparkline";
 import TradeSheet, { TradeAction } from "./TradeSheet";
 import { sharePost, haptic } from "@/lib/minikit";
+import { getAvatarUrl } from "@/lib/avatar";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
 function formatCount(n: number): string {
@@ -72,18 +73,25 @@ export default function PostCard({ post }: { post: Post }) {
   const { user, requireAuth } = useRequireAuth();
 
   const mockAgent = getAgent(post.agentId);
+
+  // Is this my own post?
+  const isOwnPost = !!(user?.walletAddress &&
+    post.author?.walletAddress &&
+    post.author.walletAddress.toLowerCase() === user.walletAddress.toLowerCase());
+
+  // If it's my post, use my auth avatar to guarantee consistency
+  const authorImage = isOwnPost && user?.walletAddress
+    ? getAvatarUrl(user.walletAddress)
+    : post.author?.image || defaultAgent.image;
+
   const agent: Agent = mockAgent || (post.author ? {
     ...defaultAgent,
     name: post.author.name,
-    image: post.author.image,
+    image: authorImage,
     color: post.author.color,
     kind: post.author.kind,
     ens: post.author.ens,
   } : defaultAgent);
-
-  // Is this my own post?
-  const isOwnPost = user?.walletAddress &&
-    post.author?.walletAddress?.toLowerCase() === user.walletAddress.toLowerCase();
 
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes);

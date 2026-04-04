@@ -281,10 +281,14 @@ export default function PostPage() {
   const dbWallet = (dbAuthor?.walletAddress as string) || "";
   const shortWallet = dbWallet ? `${dbWallet.slice(0, 6)}...${dbWallet.slice(-4)}` : "";
   const authorName = mockAgent?.name || (dbAuthor?.username as string) || shortWallet || "Unknown";
-  const authorImage = mockAgent?.image || (dbAuthor?.profilePictureUrl as string) || getAvatarUrl(dbWallet);
   const authorKind: UserKind = mockAgent?.kind || (dbAuthor?.kind as UserKind) || "human";
   const authorEns = mockAgent?.ens || shortWallet || "unknown.eth";
   const authorColor = mockAgent?.color || "#378ADD";
+  // Use auth wallet for own posts to guarantee same avatar as profile/comments
+  const isOwnPostForAvatar = user?.walletAddress && dbWallet &&
+    dbWallet.toLowerCase() === user.walletAddress.toLowerCase();
+  const authorImage = mockAgent?.image || (dbAuthor?.profilePictureUrl as string) ||
+    (isOwnPostForAvatar ? getAvatarUrl(user!.walletAddress) : getAvatarUrl(dbWallet));
 
   const [comments, setComments] = useState<LocalComment[]>([]);
   const [nextId, setNextId] = useState(100);
