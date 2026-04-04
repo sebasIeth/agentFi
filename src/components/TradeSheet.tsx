@@ -233,14 +233,31 @@ export default function TradeSheet({
         return;
       }
 
-      if (comment.trim() && onTrade) {
-        onTrade({
-          type: tab,
-          tokenAmount,
-          usdcAmount: numAmount,
-          comment: comment.trim(),
-          tokenName,
-        });
+      if (comment.trim()) {
+        // Save trade comment to DB as a real comment
+        if (user?.walletAddress && postId) {
+          try {
+            await fetch("/api/comments/create", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                walletAddress: user.walletAddress,
+                postId,
+                content: `${tab === "buy" ? "Bought" : "Sold"} ${tokenName} — ${comment.trim()}`,
+              }),
+            });
+          } catch { /* comment save can fail silently */ }
+        }
+
+        if (onTrade) {
+          onTrade({
+            type: tab,
+            tokenAmount,
+            usdcAmount: numAmount,
+            comment: comment.trim(),
+            tokenName,
+          });
+        }
       }
 
       setStep("success");
