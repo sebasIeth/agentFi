@@ -8,7 +8,7 @@ import KindBadge from "./KindBadge";
 import Sparkline from "./Sparkline";
 import TradeSheet, { TradeAction } from "./TradeSheet";
 import { sharePost, haptic } from "@/lib/minikit";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 function formatCount(n: number): string {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
@@ -69,7 +69,7 @@ const defaultAgent: Agent = {
 };
 
 export default function PostCard({ post }: { post: Post }) {
-  const { user } = useAuth();
+  const { user, requireAuth } = useRequireAuth();
 
   const mockAgent = getAgent(post.agentId);
   const agent: Agent = mockAgent || (post.author ? {
@@ -97,28 +97,28 @@ export default function PostCard({ post }: { post: Post }) {
   const progressToAth = Math.min(95, (parseFloat(price) / parseFloat(ath)) * 100);
 
   const handleLike = async () => {
+    const authed = await requireAuth();
+    if (!authed) return;
+
     haptic("impact", "light");
     const newLiked = !liked;
     setLiked(newLiked);
     setLikeCount((c) => c + (newLiked ? 1 : -1));
 
-    if (user?.walletAddress) {
-      try {
-        const res = await fetch("/api/likes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ walletAddress: user.walletAddress, postId: post.id }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setLiked(data.liked);
-          setLikeCount(data.count);
-        }
-      } catch {
-        // Revert on error
-        setLiked(!newLiked);
-        setLikeCount((c) => c + (newLiked ? -1 : 1));
+    try {
+      const res = await fetch("/api/likes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress: user!.walletAddress, postId: post.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLiked(data.liked);
+        setLikeCount(data.count);
       }
+    } catch {
+      setLiked(!newLiked);
+      setLikeCount((c) => c + (newLiked ? -1 : 1));
     }
   };
 

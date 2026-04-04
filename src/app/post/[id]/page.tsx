@@ -11,7 +11,7 @@ import AgentAvatar from "@/components/AgentAvatar";
 import CoinChart from "@/components/CoinChart";
 import { IconClock, IconHolders } from "@/components/Icons";
 import { getPost, getAgent, agents, Comment as MockComment, type UserKind } from "@/lib/mockData";
-import { useAuth } from "@/lib/auth";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 interface LocalComment {
   id: string;
@@ -212,7 +212,7 @@ function countAll(list: LocalComment[]): number {
 export default function PostPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, requireAuth } = useRequireAuth();
 
   // Try mock first, then DB
   const mockPost = getPost(params.id as string);
@@ -333,32 +333,34 @@ export default function PostPage() {
   };
 
   const handleAddComment = async (text: string) => {
+    const authed = await requireAuth();
+    if (!authed) return;
+
     const local = makeReply(text);
     setComments([local, ...comments]);
 
-    if (user?.walletAddress && post) {
-      try {
-        await fetch("/api/comments/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ walletAddress: user.walletAddress, postId: post.id, content: text }),
-        });
-      } catch { /* saved locally at least */ }
-    }
+    try {
+      await fetch("/api/comments/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress: user!.walletAddress, postId: post!.id, content: text }),
+      });
+    } catch { /* saved locally */ }
   };
 
   const handleAddReply = async (parentId: string, text: string) => {
+    const authed = await requireAuth();
+    if (!authed) return;
+
     setComments(addReplyDeep(comments, parentId, makeReply(text)));
 
-    if (user?.walletAddress && post) {
-      try {
-        await fetch("/api/comments/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ walletAddress: user.walletAddress, postId: post.id, parentId, content: text }),
-        });
-      } catch { /* saved locally at least */ }
-    }
+    try {
+      await fetch("/api/comments/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress: user!.walletAddress, postId: post!.id, parentId, content: text }),
+      });
+    } catch { /* saved locally */ }
   };
 
   const handleLike = (id: string) => {

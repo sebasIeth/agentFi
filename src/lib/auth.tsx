@@ -30,12 +30,51 @@ const AuthContext = createContext<AuthContextType>({
   signOut: () => {},
 });
 
+async function doWalletAuth(): Promise<UserData | null> {
+  try {
+    const nonce = crypto.randomUUID().replace(/-/g, "");
+    const result = await MiniKit.walletAuth({
+      nonce,
+      statement: "Sign in to agentfi",
+      expirationTime: new Date(Date.now() + 1000 * 60 * 60 * 24),
+    });
+
+    if (result.executedWith === "fallback" || !result.data) return null;
+
+    const address = result.data.address;
+    let username: string | undefined;
+    let profilePictureUrl: string | undefined;
+
+    try {
+      const profile = await MiniKit.getUserByAddress(address);
+      username = profile?.username;
+      profilePictureUrl = profile?.profilePictureUrl;
+    } catch {
+      await new Promise((r) => setTimeout(r, 500));
+      username = MiniKit.user?.username;
+      profilePictureUrl = MiniKit.user?.profilePictureUrl;
+    }
+
+    return {
+      walletAddress: address,
+      username,
+      profilePictureUrl,
+      isOrbVerified: MiniKit.user?.verificationStatus?.isOrbVerified ?? false,
+      isDocumentVerified: MiniKit.user?.verificationStatus?.isDocumentVerified ?? false,
+      isConnected: true,
+      deviceOS: MiniKit.deviceProperties?.deviceOS,
+      worldAppVersion: MiniKit.deviceProperties?.worldAppVersion,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMiniApp, setIsMiniApp] = useState(false);
 
-  // Check if already signed in (from sessionStorage)
   useEffect(() => {
     const init = async () => {
       await new Promise((r) => setTimeout(r, 500));
@@ -43,15 +82,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const installed = MiniKit.isInstalled();
       setIsMiniApp(installed);
 
-      // Check sessionStorage for existing session
+      // Check sessionStorage first
       if (typeof window !== "undefined") {
         const saved = sessionStorage.getItem("agentfi_user");
         if (saved) {
           try {
-            setUser(JSON.parse(saved));
-          } catch {
-            // ignore
-          }
+            const parsed = JSON.parse(saved);
+            if (parsed?.isConnected) {
+              setUser(parsed);
+              setIsLoading(false);
+              return;
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      // Auto-connect if inside World App
+      if (installed) {
+        const userData = await doWalletAuth();
+        if (userData) {
+          setUser(userData);
+          sessionStorage.setItem("agentfi_user", JSON.stringify(userData));
         }
       }
 
@@ -63,50 +114,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(async () => {
     setIsLoading(true);
-    try {
-      if (MiniKit.isInstalled()) {
-        const nonce = crypto.randomUUID().replace(/-/g, "");
-
-        const result = await MiniKit.walletAuth({
-          nonce,
-          statement: "Sign in to agentfi",
-          expirationTime: new Date(Date.now() + 1000 * 60 * 60),
-        });
-
-        if (result.executedWith !== "fallback" && result.data) {
-          const address = result.data.address;
-
-          // Fetch profile data from World username service
-          let username: string | undefined;
-          let profilePictureUrl: string | undefined;
-          try {
-            const profile = await MiniKit.getUserByAddress(address);
-            username = profile?.username;
-            profilePictureUrl = profile?.profilePictureUrl;
-          } catch {
-            // getUserByAddress may fail — use MiniKit.user fallback
-            await new Promise((r) => setTimeout(r, 500));
-            username = MiniKit.user?.username;
-            profilePictureUrl = MiniKit.user?.profilePictureUrl;
-          }
-
-          const userData: UserData = {
-            walletAddress: address,
-            username,
-            profilePictureUrl,
-            isOrbVerified: MiniKit.user?.verificationStatus?.isOrbVerified ?? false,
-            isDocumentVerified: MiniKit.user?.verificationStatus?.isDocumentVerified ?? false,
-            isConnected: true,
-            deviceOS: MiniKit.deviceProperties?.deviceOS,
-            worldAppVersion: MiniKit.deviceProperties?.worldAppVersion,
-          };
-
-          setUser(userData);
-          sessionStorage.setItem("agentfi_user", JSON.stringify(userData));
-        }
+    if (MiniKit.isInstalled()) {
+      const userData = await doWalletAuth();
+      if (userData) {
+        setUser(userData);
+        sessionStorage.setItem("agentfi_user", JSON.stringify(userData));
       }
-    } catch (e) {
-      console.error("Sign in failed:", e);
     }
     setIsLoading(false);
   }, []);
