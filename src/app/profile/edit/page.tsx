@@ -4,21 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Topbar from "@/components/Topbar";
 import MobileNav from "@/components/MobileNav";
+import { useAuth } from "@/lib/auth";
 
 function BackIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M19 12H5" />
       <polyline points="12 19 5 12 12 5" />
-    </svg>
-  );
-}
-
-function CameraIcon() {
-  return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-      <circle cx="12" cy="13" r="4" />
     </svg>
   );
 }
@@ -31,13 +23,26 @@ function CheckIcon() {
   );
 }
 
+function LockIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
 export default function EditProfilePage() {
   const router = useRouter();
-  const [name, setName] = useState("Seb.eth");
-  const [bio, setBio] = useState("Builder on World Chain. Exploring AI agents and social finance. Verified human.");
-  const [ens, setEns] = useState("seb.worldchain.eth");
+  const { user } = useAuth();
+  const [bio, setBio] = useState("Builder on World Chain. Exploring AI agents and social finance.");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const displayName = user?.username || user?.walletAddress?.slice(0, 10) + "..." || "—";
+  const shortAddr = user?.walletAddress
+    ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}`
+    : "—";
 
   const handleSave = () => {
     setSaving(true);
@@ -69,53 +74,57 @@ export default function EditProfilePage() {
           </button>
         </div>
 
-        {/* Avatar */}
+        {/* Avatar — from World, not editable */}
         <div className="flex justify-center py-6">
           <div className="relative">
-            <div
-              className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-border"
-              style={{ backgroundColor: "#E11D48" }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://api.dicebear.com/9.x/notionists/svg?seed=seb&backgroundColor=ffd5dc"
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
+            <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-border bg-bg-active">
+              {user?.profilePictureUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.profilePictureUrl} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <svg className="w-10 h-10 text-fg-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+              )}
             </div>
-            <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center ring-2 ring-bg-elevated">
-              <CameraIcon />
-            </button>
+            {/* Lock icon instead of camera */}
+            <div className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-bg-active text-fg-tertiary flex items-center justify-center ring-2 ring-bg-elevated">
+              <LockIcon />
+            </div>
           </div>
         </div>
+        <p className="text-[11px] text-fg-tertiary text-center mb-4">Photo synced from World App</p>
 
         {/* Form */}
         <div className="px-4 flex flex-col gap-5">
-          {/* Name */}
+          {/* Display name — from World, locked */}
           <div>
-            <label className="text-[12px] font-semibold text-fg-tertiary block mb-1.5">Display name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-bg-elevated border border-border rounded-xl px-4 py-3 text-[14px] font-medium focus:outline-none focus:border-fg focus:ring-1 focus:ring-fg transition-all"
-            />
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <label className="text-[12px] font-semibold text-fg-tertiary">Display name</label>
+              <LockIcon />
+            </div>
+            <div className="w-full bg-bg-active border border-border rounded-xl px-4 py-3 text-[14px] font-medium text-fg-tertiary">
+              {displayName}
+            </div>
+            <span className="text-[11px] text-fg-tertiary mt-1 block">Synced from your World App profile</span>
           </div>
 
-          {/* ENS */}
+          {/* Wallet — locked */}
           <div>
-            <label className="text-[12px] font-semibold text-fg-tertiary block mb-1.5">ENS name</label>
-            <input
-              type="text"
-              value={ens}
-              onChange={(e) => setEns(e.target.value)}
-              className="w-full bg-bg-elevated border border-border rounded-xl px-4 py-3 text-[14px] font-medium text-fg-tertiary focus:outline-none focus:border-fg focus:ring-1 focus:ring-fg transition-all"
-              disabled
-            />
-            <span className="text-[11px] text-fg-tertiary mt-1 block">Linked to your World ID — cannot be changed</span>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <label className="text-[12px] font-semibold text-fg-tertiary">Wallet address</label>
+              <LockIcon />
+            </div>
+            <div className="w-full bg-bg-active border border-border rounded-xl px-4 py-3 text-[14px] font-mono font-medium text-fg-tertiary">
+              {shortAddr}
+            </div>
+            <span className="text-[11px] text-fg-tertiary mt-1 block">Linked to your World ID</span>
           </div>
 
-          {/* Bio */}
+          {/* Bio — editable */}
           <div>
             <label className="text-[12px] font-semibold text-fg-tertiary block mb-1.5">Bio</label>
             <textarea
@@ -128,7 +137,7 @@ export default function EditProfilePage() {
             <span className="text-[11px] text-fg-tertiary mt-1 block text-right">{bio.length}/160</span>
           </div>
 
-          {/* Links section */}
+          {/* Links — editable */}
           <div>
             <label className="text-[12px] font-semibold text-fg-tertiary block mb-1.5">Links</label>
             <div className="flex flex-col gap-2">
@@ -156,18 +165,31 @@ export default function EditProfilePage() {
             </div>
           </div>
 
-          {/* World ID verification */}
-          <div className="rounded-2xl border border-green/20 bg-green-soft p-4">
+          {/* Verification status */}
+          <div className={`rounded-2xl border p-4 ${
+            user?.isOrbVerified
+              ? "border-green/20 bg-green-soft"
+              : "border-border bg-bg-elevated"
+          }`}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-green/10 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                user?.isOrbVerified ? "bg-green/10" : "bg-bg-active"
+              }`}>
+                <svg className={`w-5 h-5 ${user?.isOrbVerified ? "text-green" : "text-fg-tertiary"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <path d="M9 12l2 2 4-4" />
+                  {user?.isOrbVerified && <path d="M9 12l2 2 4-4" />}
                 </svg>
               </div>
               <div>
-                <div className="text-[13px] font-bold text-green">World ID verified</div>
-                <div className="text-[11px] text-green/70">Your identity is verified as a unique human</div>
+                <div className={`text-[13px] font-bold ${user?.isOrbVerified ? "text-green" : "text-fg-secondary"}`}>
+                  {user?.isOrbVerified ? "Orb verified" : "Not orb verified"}
+                </div>
+                <div className={`text-[11px] ${user?.isOrbVerified ? "text-green/70" : "text-fg-tertiary"}`}>
+                  {user?.isOrbVerified
+                    ? "Your identity is verified with World Orb"
+                    : "Visit a World Orb to verify your identity"
+                  }
+                </div>
               </div>
             </div>
           </div>
