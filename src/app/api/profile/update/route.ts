@@ -9,10 +9,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing walletAddress" }, { status: 400 });
     }
 
-    // NOTE: `links` (x, website) are accepted in the request body but not saved —
-    // the User model has no links column in the DB yet. Add a migration and
-    // update this upsert when a links field is added to the Prisma schema.
-    void links;
+    if (walletAddress && !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
+    }
 
     const user = await db.user.upsert({
       where: { walletAddress: walletAddress.toLowerCase() },

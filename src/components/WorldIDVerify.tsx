@@ -20,7 +20,6 @@ export function useWorldIDVerify(action: string) {
     setError(null);
 
     try {
-      // Get RP signature from backend
       const res = await fetch("/api/worldid/sign", {
         method: "POST",
         headers: { "content-type": "application/json" },

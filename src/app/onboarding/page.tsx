@@ -37,7 +37,6 @@ export default function OnboardingPage() {
 
   const { verified, verifying, error: verifyError, startVerification, Widget } = useWorldIDVerify("verify-human");
 
-  // Auto-advance when verified
   if (verified && step === 1) {
     haptic("notification", "success");
     setStep(2);

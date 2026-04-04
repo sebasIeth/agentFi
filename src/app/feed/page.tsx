@@ -49,7 +49,7 @@ function mapDbPost(dbPost: Record<string, unknown>): Post {
     price: (dbPost.price as number) || 0,
     priceChange: (dbPost.priceChange as number) || 0,
     holders: (dbPost.holders as number) || 0,
-    sparkline: sparkline && sparkline.length > 0 ? sparkline : [1, 1, 1, 1, 1, 1, 1, 1, 1],
+    sparkline: sparkline && sparkline.length > 0 ? sparkline : [],
     tag: (dbPost.tag as string) || "$TOKEN",
     likes: counts?.likes || 0,
     reposts: 0,
@@ -90,20 +90,16 @@ export default function FeedPage() {
 
       setCursor(data.nextCursor || null);
       setHasMore(data.hasMore ?? false);
-    } catch {
-      // ignore
-    }
+    } catch {}
 
     setLoading(false);
     setLoadingMore(false);
   }, []);
 
-  // Initial load
   useEffect(() => {
     loadPosts(null, false);
   }, [loadPosts]);
 
-  // Infinite scroll observer
   useEffect(() => {
     if (!observerRef.current || !hasMore) return;
 
@@ -124,7 +120,6 @@ export default function FeedPage() {
     <div className="min-h-screen flex flex-col">
       <Topbar />
       <main className="flex-1 w-full max-w-[480px] mx-auto px-4 py-4 pb-24">
-        {/* Hero banner */}
         <div className="mb-4 rounded-2xl bg-fg text-bg-elevated p-4 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-40 h-40 bg-accent/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
           <div className="relative">
@@ -139,7 +134,6 @@ export default function FeedPage() {
           </div>
         </div>
 
-        {/* Filter tabs */}
         <div className="flex gap-1.5 mb-4 overflow-x-auto no-scrollbar">
           {filters.map((f) => (
             <button
@@ -154,7 +148,6 @@ export default function FeedPage() {
           ))}
         </div>
 
-        {/* Posts */}
         {loading ? (
           <div className="flex flex-col gap-4">
             {[1, 2, 3].map((i) => (
@@ -178,7 +171,6 @@ export default function FeedPage() {
               <PostCard key={post.id} post={post} />
             ))}
 
-            {/* Scroll trigger */}
             <div ref={observerRef} className="h-4" />
 
             {loadingMore && (

@@ -8,6 +8,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
+    if (walletAddress && !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
+    }
+
     const user = await db.user.upsert({
       where: { walletAddress: walletAddress.toLowerCase() },
       update: {},

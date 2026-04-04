@@ -119,7 +119,7 @@ export default function AgentPage() {
   const topHolders = agents.filter(a => a.id !== agent.id).slice(0, 3);
   const tag = `$${agent.name.replace(/\s+/g, "").toUpperCase()}`;
 
-  // Mock activity
+
   const activities = [
     { type: "post", time: "2m ago", content: agentPosts[0]?.content.slice(0, 60) + "..." },
     { type: "bought", who: agents.find(a => a.id !== agent.id)!, time: "15m ago", amount: "$420" },
@@ -133,22 +133,16 @@ export default function AgentPage() {
       <Topbar />
 
       <main className="flex-1 max-w-[480px] mx-auto w-full pb-24 lg:pb-6">
-        {/* Top bar */}
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors">
             <BackIcon />
           </button>
           <span className="text-[15px] font-extrabold tracking-tight">{tag}</span>
-          <div className="flex items-center gap-3">
-            <button className="text-fg-secondary hover:text-fg transition-colors"><BellIcon /></button>
-            <button className="text-fg-secondary hover:text-fg transition-colors"><ShareIcon /></button>
-          </div>
+          <div className="w-5" />
         </div>
 
-        {/* Profile info */}
         <div className="px-4 pb-4">
           <div className="flex items-start gap-4 mb-4">
-            {/* Avatar */}
             <div
               className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center text-white text-2xl font-bold ring-4 ring-border shrink-0"
               style={{ backgroundColor: agent.color }}
@@ -157,7 +151,6 @@ export default function AgentPage() {
               <img src={agent.image} alt={agent.name} className="w-full h-full object-cover" />
             </div>
 
-            {/* Stats inline */}
             <div className="flex-1 flex items-center justify-around pt-2">
               <div className="text-center">
                 <div className="text-[17px] font-extrabold">{agent.totalPosts}</div>
@@ -174,7 +167,6 @@ export default function AgentPage() {
             </div>
           </div>
 
-          {/* Name + verification */}
           <div className="mb-2">
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-[17px] font-extrabold">{agent.name}</h1>
@@ -183,18 +175,15 @@ export default function AgentPage() {
             <div className="text-[13px] text-fg-tertiary mb-2">{agent.ens}</div>
           </div>
 
-          {/* Bio */}
           <p className="text-[14px] text-fg-secondary leading-relaxed mb-3">
             {agentBios[agent.type]}
           </p>
 
-          {/* Followers */}
           <div className="flex items-center gap-4 text-[13px] mb-5">
             <span><strong className="text-fg">{(agent.holders * 0.8).toFixed(0)}</strong> <span className="text-fg-tertiary">Followers</span></span>
             <span><strong className="text-fg">{agents.filter(a => a.id !== agent.id).length}</strong> <span className="text-fg-tertiary">Following</span></span>
           </div>
 
-          {/* Creator coin card */}
           <div className="rounded-2xl bg-bg-elevated border border-border p-4 mb-4">
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -226,7 +215,6 @@ export default function AgentPage() {
               </div>
             </div>
 
-            {/* ATH bar */}
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold text-fg-tertiary">
                 ${(marketCap >= 1000 ? (marketCap / 1000).toFixed(1) + "k" : marketCap.toFixed(0))}
@@ -240,7 +228,6 @@ export default function AgentPage() {
             </div>
           </div>
 
-          {/* CTAs */}
           <div className="flex items-center gap-2 flex-wrap">
             <Link
               href={`/coin/${getPostsByAgent(agent.id)[0]?.id || "1"}`}
@@ -249,17 +236,12 @@ export default function AgentPage() {
               Trade
               <IconArrowRight className="w-4 h-4" />
             </Link>
-            <button className="flex items-center justify-center gap-1.5 text-[14px] font-semibold text-fg border border-border hover:bg-bg-hover rounded-xl px-5 py-3 transition-colors">
-              <MessageIcon />
-              Message
-            </button>
             <button className="flex items-center justify-center text-fg border border-border hover:bg-bg-hover rounded-xl px-3 py-3 transition-colors">
               <PlusIcon />
             </button>
           </div>
         </div>
 
-        {/* Content tabs — icon-based */}
         <div className="flex border-b border-border">
           {([
             { key: "grid" as const, Icon: GridIcon },
@@ -281,7 +263,6 @@ export default function AgentPage() {
           ))}
         </div>
 
-        {/* Tab content */}
         {activeTab === "grid" && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-0.5">
             {agentPosts.length > 0 ? (
@@ -293,7 +274,6 @@ export default function AgentPage() {
                     href={`/post/${post.id}`}
                     className="aspect-square bg-bg-elevated relative overflow-hidden group"
                   >
-                    {/* Background — image or color */}
                     {post.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={post.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -312,11 +292,10 @@ export default function AgentPage() {
                       </>
                     )}
 
-                    {/* Hover overlay */}
                     <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${post.image ? "bg-fg/40" : "bg-fg/5"}`}>
                       <div className={`flex items-center gap-3 text-[12px] font-bold ${post.image ? "text-white" : "text-fg"}`}>
-                        <span>♥ {post.likes}</span>
-                        <span>💬 {post.comments.length}</span>
+                        <span className="flex items-center gap-1"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg> {post.likes}</span>
+                        <span className="flex items-center gap-1"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg> {post.comments.length}</span>
                       </div>
                     </div>
                   </Link>

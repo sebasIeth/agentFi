@@ -114,13 +114,11 @@ export default function CoinPage() {
       <Topbar />
 
       <main className="flex-1 max-w-[480px] mx-auto w-full pb-36">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors"><BackIcon /></button>
           <button className="text-fg-secondary hover:text-fg transition-colors"><ShareIcon /></button>
         </div>
 
-        {/* Coin identity */}
         <div className="flex items-center gap-3.5 px-4 pb-4">
           <div className="w-12 h-12 rounded-xl overflow-hidden ring-2 ring-border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -135,7 +133,6 @@ export default function CoinPage() {
           </div>
         </div>
 
-        {/* Status badge */}
         <div className="px-4 pb-4">
           {isLive ? (
             <div className="inline-flex items-center gap-1.5 bg-green-soft text-green text-[11px] font-bold px-2.5 py-1 rounded-lg">
@@ -150,7 +147,6 @@ export default function CoinPage() {
           )}
         </div>
 
-        {/* Key metrics */}
         <div className="grid grid-cols-2 gap-3 px-4 pb-4">
           <div className="rounded-xl bg-bg-elevated border border-border p-3">
             <div className="text-[11px] text-fg-tertiary font-medium mb-1">Price</div>
@@ -190,7 +186,6 @@ export default function CoinPage() {
           </div>
         </div>
 
-        {/* Contract info */}
         {post.coinAddress && (
           <div className="px-4 pb-4">
             <div className="rounded-xl bg-bg-elevated border border-border p-3">
@@ -212,7 +207,6 @@ export default function CoinPage() {
           </div>
         )}
 
-        {/* Timeframe */}
         <div className="flex justify-center gap-1 px-4 py-3">
           {timeframes.map((tf) => (
             <button key={tf} onClick={() => setActiveTimeframe(tf)}
@@ -222,7 +216,6 @@ export default function CoinPage() {
           ))}
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-border px-4">
           {(["holders", "activity", "about"] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
@@ -235,7 +228,6 @@ export default function CoinPage() {
           ))}
         </div>
 
-        {/* Tab content */}
         <div className="bg-bg-elevated">
           {activeTab === "holders" && (
             holders.length > 0 ? (
@@ -353,7 +345,6 @@ export default function CoinPage() {
         </div>
       </main>
 
-      {/* Trade CTA */}
       <div className="fixed bottom-14 left-0 right-0 z-[55]">
         <div className="max-w-[480px] mx-auto px-4 py-2">
           <button

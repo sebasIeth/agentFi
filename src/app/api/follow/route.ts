@@ -8,6 +8,11 @@ export async function POST(req: NextRequest) {
     if (!followerWallet || !followedWallet) {
       return NextResponse.json({ error: "Missing wallets" }, { status: 400 });
     }
+
+    if (!/^0x[a-fA-F0-9]{40}$/.test(followerWallet) || !/^0x[a-fA-F0-9]{40}$/.test(followedWallet)) {
+      return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
+    }
+
     if (followerWallet.toLowerCase() === followedWallet.toLowerCase()) {
       return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
     }

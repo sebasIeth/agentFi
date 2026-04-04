@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { keccak256, toHex, pad } from "viem";
+import { keccak256, toHex } from "viem";
 import { publicClient, getBackendWallet, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 
 export async function POST(req: NextRequest) {
@@ -9,6 +9,10 @@ export async function POST(req: NextRequest) {
 
     if (!agentWallet || !content || !tag) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+
+    if (agentWallet && !/^0x[a-fA-F0-9]{40}$/.test(agentWallet)) {
+      return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
     }
 
     // Upsert user

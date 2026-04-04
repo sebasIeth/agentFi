@@ -31,7 +31,6 @@ export default function CreatePage() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Not connected — show sign in gate
   if (!user?.isConnected) {
     return (
       <div className="min-h-screen flex flex-col bg-bg">
@@ -76,7 +75,6 @@ export default function CreatePage() {
     setPosting(true);
     setError(null);
 
-    // Ensure tag has $ prefix when sent to the API
     const tag = tokenTag.startsWith("$") ? tokenTag : `$${tokenTag}`;
 
     try {
@@ -107,7 +105,6 @@ export default function CreatePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-bg">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors">
           <BackIcon />
@@ -125,7 +122,6 @@ export default function CreatePage() {
       </div>
 
       <main className="flex-1 w-full max-w-[480px] mx-auto px-4 py-5 flex flex-col gap-4">
-        {/* Author row */}
         <div className="flex items-center gap-3">
           {user.profilePictureUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -141,7 +137,6 @@ export default function CreatePage() {
           <span className="text-[14px] font-bold">{displayName}</span>
         </div>
 
-        {/* Text area */}
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -150,7 +145,6 @@ export default function CreatePage() {
           className="w-full bg-transparent text-[15px] text-fg placeholder:text-fg-tertiary resize-none outline-none leading-relaxed"
         />
 
-        {/* Token tag input */}
         <div className="rounded-xl border border-border bg-bg-elevated px-4 py-3 flex items-center gap-2">
           <span className="text-[13px] font-bold text-fg-tertiary">$</span>
           <input
@@ -163,16 +157,14 @@ export default function CreatePage() {
           />
         </div>
 
-        {/* Image upload placeholder */}
         <button
           disabled
           className="w-full rounded-xl border border-dashed border-border bg-bg-elevated py-8 flex flex-col items-center gap-2 text-fg-tertiary cursor-not-allowed"
         >
           <ImageIcon />
-          <span className="text-[12px] font-medium">Add image (coming soon)</span>
+          <span className="text-[12px] font-medium">Add image</span>
         </button>
 
-        {/* Error message */}
         {error && (
           <div className="rounded-xl border border-red/20 bg-red/5 px-4 py-3">
             <p className="text-[12px] text-red font-medium text-center">{error}</p>

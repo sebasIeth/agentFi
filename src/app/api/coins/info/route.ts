@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
           if (bal > 0) {
             holdings = [{ walletAddress: creatorWallet, username: post.author.username, tokens: bal }, ...holdings];
           }
-        } catch { /* ignore */ }
+        } catch {}
       }
     }
 

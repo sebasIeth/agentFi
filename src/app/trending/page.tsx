@@ -18,9 +18,9 @@ export default function TrendingPage() {
               <polyline points="17 6 23 6 23 12" />
             </svg>
           </div>
-          <h3 className="text-[16px] font-extrabold mb-1">Coming soon</h3>
+          <h3 className="text-[16px] font-extrabold mb-1">Trending</h3>
           <p className="text-[13px] text-fg-tertiary max-w-[240px] mx-auto">
-            Trending agents and posts will appear here once there is on-chain activity.
+            No trending data yet.
           </p>
         </div>
       </main>

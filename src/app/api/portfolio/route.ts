@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
             ]);
             price = Number(p) / 1e6;
             marketCap = Number(mc) / 1e6;
-          } catch { /* use DB price */ }
+          } catch {}
         }
 
         const value = h.tokens * price;

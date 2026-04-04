@@ -3,13 +3,20 @@ import { db } from "@/lib/db";
 import { keccak256, toHex } from "viem";
 import { publicClient, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 
-// Called after MiniKit.sendTransaction() completes
 export async function POST(req: NextRequest) {
   try {
     const { walletAddress, postId, txHash, type, usdcAmount } = await req.json();
 
     if (!walletAddress || !postId || !type) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+
+    if (walletAddress && !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
+    }
+
+    if (usdcAmount !== undefined && (typeof usdcAmount !== 'number' || usdcAmount <= 0)) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
     const addresses = getContractAddresses();
@@ -20,7 +27,6 @@ export async function POST(req: NextRequest) {
 
     const poolId = (post.contentHash || keccak256(toHex(postId))) as `0x${string}`;
 
-    // Read current state from Vault (don't wait for receipt — userOpHash != txHash)
     let tokenBalance = 0;
     let price = 0;
     let totalSupply = 0;

@@ -82,7 +82,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const installed = MiniKit.isInstalled();
       setIsMiniApp(installed);
 
-      // Clear old sessions — force re-auth with lowercase wallet
       if (typeof window !== "undefined") {
         const version = sessionStorage.getItem("agentfi_v");
         if (version !== "2") {
@@ -100,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setIsLoading(false);
               return;
             }
-          } catch { /* ignore */ }
+          } catch {}
         }
       }
 

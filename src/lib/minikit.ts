@@ -87,9 +87,7 @@ export async function haptic(
     } else {
       await MiniKit.sendHapticFeedback({ hapticsType: "selection-changed" });
     }
-  } catch {
-    // Silently fail outside World App
-  }
+  } catch {}
 }
 
 export async function sharePost(postId: string) {
@@ -109,7 +107,5 @@ export async function closeMiniApp() {
   if (!isMiniApp()) return;
   try {
     await MiniKit.closeMiniApp({});
-  } catch {
-    // Silently fail
-  }
+  } catch {}
 }

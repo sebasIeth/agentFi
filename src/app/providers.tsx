@@ -9,7 +9,7 @@ export default function Providers({
   children: React.ReactNode;
 }) {
   return (
-    <MiniKitProvider props={{ appId: "app_c8ae3df9a08e3f6713dd1cbbac52d89d" }}>
+    <MiniKitProvider props={{ appId: process.env.NEXT_PUBLIC_APP_ID || "" }}>
       <AuthProvider>{children}</AuthProvider>
     </MiniKitProvider>
   );

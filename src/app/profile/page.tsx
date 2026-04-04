@@ -96,7 +96,6 @@ export default function ProfilePage() {
   const avatarSrc = user?.profilePictureUrl ||
     (walletAddr ? getAvatarUrl(walletAddr) : undefined);
 
-  // Fetch profile from DB
   useEffect(() => {
     if (walletAddr) {
       fetch(`/api/profile/me?wallet=${walletAddr}`)
@@ -159,7 +158,7 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors"><BackIcon /></button>
           <span className="text-[15px] font-extrabold tracking-tight">{displayName}</span>
-          <button className="text-fg-secondary hover:text-fg transition-colors"><SettingsIcon /></button>
+          <button onClick={() => router.push("/profile/edit")} className="text-fg-secondary hover:text-fg transition-colors"><SettingsIcon /></button>
         </div>
 
         <div className="px-4 pb-4">
@@ -224,7 +223,6 @@ export default function ProfilePage() {
             <span><strong className="text-fg">{followingCount}</strong> <span className="text-fg-tertiary">Following</span></span>
           </div>
 
-          {/* Agent card */}
           {myAgent ? (
             <div className="rounded-2xl border border-border bg-bg-elevated p-4 mb-4">
               <div className="text-[11px] text-fg-tertiary font-medium mb-2">My agent</div>
@@ -273,7 +271,6 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-border">
           {([
             { key: "posts" as const, Icon: GridIcon },
@@ -288,7 +285,6 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {/* Posts */}
         {activeTab === "posts" && (
           profile?.posts && profile.posts.length > 0 ? (
             <div className="grid grid-cols-2 gap-0.5">
@@ -310,8 +306,8 @@ export default function ProfilePage() {
                     )}
                     <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${imageUrl ? "bg-fg/40" : "bg-fg/5"}`}>
                       <div className={`flex items-center gap-3 text-[12px] font-bold ${imageUrl ? "text-white" : "text-fg"}`}>
-                        <span>♥ {counts?.likes || 0}</span>
-                        <span>💬 {counts?.comments || 0}</span>
+                        <span className="flex items-center gap-1"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg> {counts?.likes || 0}</span>
+                        <span className="flex items-center gap-1"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg> {counts?.comments || 0}</span>
                       </div>
                     </div>
                   </Link>

@@ -151,7 +151,6 @@ function CommentRow({
           </button>
         </div>
 
-        {/* Reply preview */}
         {showReplyCount && comment.replies.length > 0 && (
           <button
             onClick={() => onOpen(comment.id)}
@@ -215,7 +214,6 @@ function CommentInput({
   );
 }
 
-// Deep helpers
 function findComment(list: LocalComment[], id: string): LocalComment | null {
   for (const c of list) {
     if (c.id === id) return c;
@@ -248,7 +246,6 @@ export default function PostPage() {
   const router = useRouter();
   const { user, requireAuth } = useRequireAuth();
 
-  // Try mock first, then DB
   const mockPost = getPost(params.id as string);
   const mockAgent = mockPost ? getAgent(mockPost.agentId) : undefined;
 
@@ -264,7 +261,7 @@ export default function PostPage() {
     }
   }, [mockPost, params.id]);
 
-  // Build unified post data
+
   const post = mockPost || (dbPost ? {
     id: dbPost.id as string,
     agentId: "0",
@@ -274,7 +271,7 @@ export default function PostPage() {
     price: (dbPost.price as number) || 0,
     priceChange: (dbPost.priceChange as number) || 0,
     holders: (dbPost.holders as number) || 0,
-    sparkline: [1, 1, 1, 1, 1, 1, 1, 1, 1],
+    sparkline: [],
     tag: (dbPost.tag as string) || "$TOKEN",
     likes: (dbPost._count as Record<string, number> | undefined)?.likes || 0,
     reposts: (dbPost._count as Record<string, number> | undefined)?.trades || 0,
@@ -287,7 +284,7 @@ export default function PostPage() {
     })),
   } : null);
 
-  // Build author info
+
   const dbAuthor = dbPost?.author as Record<string, unknown> | undefined;
   const dbWallet = (dbAuthor?.walletAddress as string) || "";
   const shortWallet = dbWallet ? `${dbWallet.slice(0, 6)}...${dbWallet.slice(-4)}` : "";
@@ -295,7 +292,6 @@ export default function PostPage() {
   const authorKind: UserKind = mockAgent?.kind || (dbAuthor?.kind as UserKind) || "human";
   const authorEns = mockAgent?.ens || shortWallet || "unknown.eth";
   const authorColor = mockAgent?.color || "#378ADD";
-  // Use auth wallet for own posts to guarantee same avatar as profile/comments
   const isOwnPostForAvatar = user?.walletAddress && dbWallet &&
     dbWallet.toLowerCase() === user.walletAddress.toLowerCase();
   const authorImage = mockAgent?.image || (dbAuthor?.profilePictureUrl as string) ||
@@ -306,11 +302,9 @@ export default function PostPage() {
   const [focusStack, setFocusStack] = useState<string[]>([]);
   const [tradeOpen, setTradeOpen] = useState(false);
 
-  // Init comments when post loads
   useEffect(() => {
     if (post && comments.length === 0) {
       if (dbPost) {
-        // DB comments have author objects
         const dbComments = (dbPost.comments || []) as Array<Record<string, unknown>>;
         setComments(dbComments.map(fromDb));
       } else {
@@ -351,7 +345,7 @@ export default function PostPage() {
   const coinName = post.tag;
   const holderAgents = mockPost ? agents.filter(a => a.id !== "0").slice(0, 5) : [];
 
-  // Build agent-like object for the post author (used by AgentAvatar etc)
+
   const agent = {
     id: "0", kind: authorKind, name: authorName, ens: authorEns,
     type: "user" as const, avatar: authorName.slice(0, 2).toUpperCase(),
@@ -399,7 +393,7 @@ export default function PostPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: user!.walletAddress, postId: post!.id, content: text }),
       });
-    } catch { /* saved locally */ }
+    } catch {}
   };
 
   const handleAddReply = async (parentId: string, text: string) => {
@@ -414,7 +408,7 @@ export default function PostPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: user!.walletAddress, postId: post!.id, parentId, content: text }),
       });
-    } catch { /* saved locally */ }
+    } catch {}
   };
 
   const handleLike = (id: string) => {
@@ -433,11 +427,9 @@ export default function PostPage() {
     }
   };
 
-  // Determine what to show
   const focusedId = focusStack.length > 0 ? focusStack[focusStack.length - 1] : null;
   const focusedComment = focusedId ? findComment(comments, focusedId) : null;
 
-  // ── Focused comment view ──
   if (focusedComment) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -451,7 +443,6 @@ export default function PostPage() {
             Back
           </button>
 
-          {/* Parent comment */}
           <div className="bg-bg-elevated border-y border-border px-4">
             <CommentRow
               comment={focusedComment}
@@ -461,20 +452,17 @@ export default function PostPage() {
             />
           </div>
 
-          {/* Replies header */}
           <div className="px-4 py-3 border-b border-border bg-bg-elevated sticky top-12 z-10">
             <h3 className="text-[14px] font-bold">
               {focusedComment.replies.length} {focusedComment.replies.length === 1 ? "reply" : "replies"}
             </h3>
           </div>
 
-          {/* Reply input */}
           <CommentInput
             placeholder={`Reply to ${focusedComment.username}...`}
             onSubmit={(text) => handleAddReply(focusedComment.id, text)}
           />
 
-          {/* Replies list */}
           <div className="bg-bg-elevated px-4">
             {focusedComment.replies.length > 0 ? (
               focusedComment.replies.map((reply, i) => (
@@ -500,7 +488,6 @@ export default function PostPage() {
     );
   }
 
-  // ── Main post view ──
   return (
     <div className="min-h-screen flex flex-col">
       <Topbar />
@@ -514,7 +501,6 @@ export default function PostPage() {
           Back
         </button>
 
-        {/* Post */}
         <article className="bg-bg-elevated border-y border-border">
           <div className="flex items-center gap-3 px-4 pt-4 pb-3">
             <Link href={`/agent/${agent.ens}`}>
@@ -540,7 +526,6 @@ export default function PostPage() {
             <p className="text-[16px] leading-[1.75] text-fg/90">{post.content}</p>
           </div>
 
-          {/* Image or chart */}
           {post.image ? (
             <div className="px-4 pb-4">
               <div className="rounded-xl overflow-hidden bg-bg">
@@ -610,14 +595,12 @@ export default function PostPage() {
           </div>
         </article>
 
-        {/* Comments header */}
         <div className="px-4 py-3 border-b border-border bg-bg-elevated sticky top-12 z-10">
           <h3 className="text-[14px] font-bold">Comments</h3>
         </div>
 
         <CommentInput placeholder="Add a comment..." onSubmit={handleAddComment} />
 
-        {/* Comments list */}
         <div className="bg-bg-elevated px-4">
           {comments.length > 0 ? (
             comments.map((comment, i) => (

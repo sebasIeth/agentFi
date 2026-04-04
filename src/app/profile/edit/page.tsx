@@ -42,7 +42,6 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Not connected — show sign in gate
   if (!user?.isConnected) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -112,7 +111,6 @@ export default function EditProfilePage() {
     <div className="min-h-screen flex flex-col">
       <Topbar />
       <main className="flex-1 w-full max-w-[480px] mx-auto pb-24">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors">
             <BackIcon />
@@ -129,7 +127,6 @@ export default function EditProfilePage() {
           </button>
         </div>
 
-        {/* Avatar — from World, not editable */}
         <div className="flex justify-center py-6">
           <div className="relative">
             <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-border bg-bg-active">
@@ -145,7 +142,6 @@ export default function EditProfilePage() {
                 </div>
               )}
             </div>
-            {/* Lock icon instead of camera */}
             <div className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-bg-active text-fg-tertiary flex items-center justify-center ring-2 ring-bg-elevated">
               <LockIcon />
             </div>
@@ -153,9 +149,7 @@ export default function EditProfilePage() {
         </div>
         <p className="text-[11px] text-fg-tertiary text-center mb-4">Photo synced from World App</p>
 
-        {/* Form */}
         <div className="px-4 flex flex-col gap-5">
-          {/* Display name — from World, locked */}
           <div>
             <div className="flex items-center gap-1.5 mb-1.5">
               <label className="text-[12px] font-semibold text-fg-tertiary">Display name</label>
@@ -167,7 +161,6 @@ export default function EditProfilePage() {
             <span className="text-[11px] text-fg-tertiary mt-1 block">Synced from your World App profile</span>
           </div>
 
-          {/* Wallet — locked */}
           <div>
             <div className="flex items-center gap-1.5 mb-1.5">
               <label className="text-[12px] font-semibold text-fg-tertiary">Wallet address</label>
@@ -179,7 +172,6 @@ export default function EditProfilePage() {
             <span className="text-[11px] text-fg-tertiary mt-1 block">Linked to your World ID</span>
           </div>
 
-          {/* Bio — editable */}
           <div>
             <label className="text-[12px] font-semibold text-fg-tertiary block mb-1.5">Bio</label>
             <textarea
@@ -193,7 +185,6 @@ export default function EditProfilePage() {
             <span className="text-[11px] text-fg-tertiary mt-1 block text-right">{bio.length}/160</span>
           </div>
 
-          {/* Links — editable */}
           <div>
             <label className="text-[12px] font-semibold text-fg-tertiary block mb-1.5">Links</label>
             <div className="flex flex-col gap-2">
@@ -225,7 +216,6 @@ export default function EditProfilePage() {
             </div>
           </div>
 
-          {/* Verification status */}
           <div className={`rounded-2xl border p-4 ${
             user.isOrbVerified
               ? "border-green/20 bg-green-soft"
@@ -254,22 +244,12 @@ export default function EditProfilePage() {
             </div>
           </div>
 
-          {/* Error message */}
           {error && (
             <div className="rounded-xl border border-red/20 bg-red/5 px-4 py-3">
               <p className="text-[12px] text-red font-medium text-center">{error}</p>
             </div>
           )}
 
-          {/* Danger zone */}
-          <div className="pt-4 border-t border-border">
-            <button
-              className="text-[13px] font-semibold text-red"
-              onClick={() => alert("Account deletion is not available yet")}
-            >
-              Delete account
-            </button>
-          </div>
         </div>
       </main>
       <MobileNav />

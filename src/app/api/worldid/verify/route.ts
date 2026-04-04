@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
   try {
     const { rp_id, idkitResponse, walletAddress } = await req.json();
 
-    const rpId = rp_id || process.env.RP_ID || "rp_4af75d3d6fa314d0";
+    const rpId = rp_id || process.env.RP_ID;
 
     // Forward proof to World Developer Portal for verification
     const response = await fetch(

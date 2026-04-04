@@ -252,7 +252,7 @@ export default function TradeSheet({
                 content: `${tab === "buy" ? "Bought" : "Sold"} ${tokenName} — ${comment.trim()}`,
               }),
             });
-          } catch { /* comment save can fail silently */ }
+          } catch {}
         }
 
         if (onTrade) {

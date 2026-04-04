@@ -13,10 +13,13 @@ export async function GET(req: NextRequest) {
 
   if (!wallet) return NextResponse.json({ error: "Missing wallet" }, { status: 400 });
 
+  if (!/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
+    return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
+  }
+
   const addresses = getContractAddresses();
 
   try {
-    // Get USDC balance
     const usdcBalance = await publicClient.readContract({
       address: addresses.usdc,
       abi: ERC20_BALANCE_ABI,
@@ -75,7 +78,7 @@ export async function GET(req: NextRequest) {
           const poolData = pool as { realUsdcBalance: bigint };
           realLiquidity = Number(poolData.realUsdcBalance) / 1e6;
           sellableUsdc = Number(sellQuote) / 1e6;
-        } catch { /* pool may not exist */ }
+        } catch {}
       }
     }
 
