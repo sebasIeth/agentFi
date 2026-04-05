@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
         ens: agent.ens,
         type: agent.type,
         category: template.category,
+        wallet: agentUser.walletAddress,
         isActive: true,
         lastPostedAt: null,
         managedPosts: 0,

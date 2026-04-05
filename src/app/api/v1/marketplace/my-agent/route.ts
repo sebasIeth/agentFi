@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
       ens: a.ens,
       type: a.type,
       category: TEMPLATES[a.type]?.category || "poster",
+      wallet: a.avatarUrl || null,
       isActive: a.isActive,
       lastPostedAt: a.lastPostedAt,
       managedPosts: a.managedPosts,

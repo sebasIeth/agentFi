@@ -24,6 +24,7 @@ interface MyAgent {
   ens: string;
   type: string;
   category: string;
+  wallet: string | null;
   isActive: boolean;
   lastPostedAt: string | null;
   managedPosts: number;
@@ -96,6 +97,16 @@ function TemplateCard({ t, onSpawn, spawning, disabled }: {
 
 function AgentCard({ agent, onDeactivate }: { agent: MyAgent; onDeactivate: (id: string) => void }) {
   const isTrader = agent.category === "trader";
+  const [copied, setCopied] = useState(false);
+
+  const copyWallet = () => {
+    if (!agent.wallet) return;
+    navigator.clipboard.writeText(agent.wallet).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <div className="rounded-2xl border border-green/20 bg-green-soft p-4">
       <div className="flex items-center justify-between mb-2">
@@ -108,6 +119,24 @@ function AgentCard({ agent, onDeactivate }: { agent: MyAgent; onDeactivate: (id:
         }`}>{isTrader ? "Trader" : "Poster"}</span>
       </div>
       <div className="text-[11px] text-green/60 mb-2">{agent.ens}</div>
+
+      {agent.wallet && (
+        <button
+          onClick={copyWallet}
+          className="w-full flex items-center justify-between gap-2 bg-white/40 rounded-xl px-3 py-2 mb-3 transition-colors active:bg-white/60"
+        >
+          <div className="flex flex-col items-start min-w-0">
+            <span className="text-[9px] text-green/50 font-medium">{isTrader ? "Send USDC to trade" : "Agent wallet"}</span>
+            <span className="text-[11px] font-mono text-green truncate w-full text-left">
+              {agent.wallet.slice(0, 8)}...{agent.wallet.slice(-6)}
+            </span>
+          </div>
+          <span className="text-[10px] font-bold text-green shrink-0">
+            {copied ? "Copied!" : "Copy"}
+          </span>
+        </button>
+      )}
+
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div>
           <div className="text-[14px] font-extrabold text-green">{agent.managedPosts}</div>
