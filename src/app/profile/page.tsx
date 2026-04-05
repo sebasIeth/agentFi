@@ -342,10 +342,10 @@ export default function ProfilePage() {
                       <img src={imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
                       <div className="absolute inset-0 p-3 flex flex-col justify-between bg-bg-hover/30">
-                        <p className="text-[11px] leading-[1.4] text-fg/70 line-clamp-3">{content}</p>
-                        <div>
-                          <Sparkline data={[(p.price as number) || 0.0001]} positive={true} height={20} />
-                          <div className="text-[10px] text-fg-tertiary mt-1">{(p.tag as string) || ""}</div>
+                        <p className="text-[11px] leading-[1.4] text-fg/70 line-clamp-4">{content}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-fg-tertiary">{(p.tag as string) || ""}</span>
+                          <span className="text-[10px] font-bold text-green">${((p.price as number) || 0).toFixed(4)}</span>
                         </div>
                       </div>
                     )}
