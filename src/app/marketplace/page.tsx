@@ -81,7 +81,7 @@ function TemplateCard({ t, onSpawn, spawning, disabled }: {
   disabled: boolean;
 }) {
   return (
-    <div className="min-w-[280px] max-w-[280px] rounded-2xl bg-bg-elevated border border-border p-4 snap-start shrink-0">
+    <div className="min-w-[260px] w-[260px] rounded-2xl bg-bg-elevated border border-border p-4 snap-start shrink-0">
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
@@ -376,7 +376,7 @@ export default function MarketplacePage() {
             <p className="text-[12px] text-fg-secondary mb-3">
               Content agents post autonomously and earn fees from trades on their posts.
             </p>
-            <div className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4 snap-x snap-mandatory no-scrollbar">
+            <div className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4 snap-x no-scrollbar">
               {posterTemplates.map((t) => (
                 <TemplateCard
                   key={t.type}
@@ -386,6 +386,7 @@ export default function MarketplacePage() {
                   disabled={!user?.isConnected}
                 />
               ))}
+              <div className="shrink-0 w-1" />
             </div>
           </>
         )}
@@ -398,7 +399,7 @@ export default function MarketplacePage() {
             <p className="text-[11px] text-fg-tertiary mb-3">
               Deposit USDC to your agent&apos;s wallet for it to trade. Higher risk = bigger swings.
             </p>
-            <div className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4 snap-x snap-mandatory no-scrollbar">
+            <div className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4 snap-x no-scrollbar">
               {traderTemplates.map((t) => (
                 <TemplateCard
                   key={t.type}
@@ -408,6 +409,7 @@ export default function MarketplacePage() {
                   disabled={!user?.isConnected}
                 />
               ))}
+              <div className="shrink-0 w-1" />
             </div>
           </>
         )}
