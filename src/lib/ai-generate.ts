@@ -5,6 +5,7 @@ const ZERO_G_RPC = process.env.ZERO_G_RPC || "https://evmrpc.0g.ai";
 
 const PROVIDER_CHAIN = [
   "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0", // DeepSeek v3 (primary)
+  "0xd9966e13a6026Fcca4b13E7ff95c94DE268C471C", // GLM-5 (emergency backup)
 ];
 
 type Broker = Awaited<ReturnType<typeof createZGComputeNetworkBroker>>;
