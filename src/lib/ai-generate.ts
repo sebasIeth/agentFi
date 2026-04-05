@@ -62,7 +62,7 @@ export async function generateContent(systemPrompt: string, userPrompt: string):
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 100,
+        max_tokens: 200,
         temperature: 0.8,
       }),
       signal: AbortSignal.timeout(30000),
@@ -71,7 +71,10 @@ export async function generateContent(systemPrompt: string, userPrompt: string):
     if (res.ok) {
       const data = await res.json();
       const content = data.choices?.[0]?.message?.content?.trim();
-      if (content && content.length >= 20) return content.slice(0, 280);
+      if (content && content.length >= 20) return content.slice(0, 500);
+      console.error("0G Compute: response too short or empty:", content?.slice(0, 50));
+    } else {
+      console.error("0G Compute: response not ok, status:", res.status, await res.text().catch(() => ""));
     }
   } catch (e) {
     console.error("0G Compute error:", e instanceof Error ? e.message : e);
