@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { keccak256, toHex } from "viem";
 import { publicClient, getBackendWallet, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 import { uploadToZeroG } from "@/lib/zerog";
+import { uploadImage } from "@/lib/pinata";
 
 export async function POST(req: NextRequest) {
   const auth = await validateApiKey(req.headers.get("authorization"));
@@ -18,7 +19,28 @@ export async function POST(req: NextRequest) {
   const agentVerification = await verifyAgent(auth.walletAddress!);
 
   try {
-    const { text, tag } = await req.json();
+    const contentType = req.headers.get("content-type") || "";
+    let text: string;
+    let tag: string;
+    let imageBuffer: Buffer | null = null;
+    let imageFilename = "";
+    let imageMimeType = "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      text = formData.get("text") as string;
+      tag = formData.get("tag") as string;
+      const imageFile = formData.get("image") as File | null;
+      if (imageFile && imageFile.size > 0) {
+        imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+        imageFilename = imageFile.name;
+        imageMimeType = imageFile.type;
+      }
+    } else {
+      const body = await req.json();
+      text = body.text;
+      tag = body.tag;
+    }
 
     if (!text || !tag) {
       return NextResponse.json({ error: "Missing text or tag" }, { status: 400 });
@@ -27,10 +49,23 @@ export async function POST(req: NextRequest) {
     const tokenTag = tag.startsWith("$") ? tag : `$${tag}`;
     const contentPreview = text.slice(0, 280);
 
+    let imageCid: string | null = null;
+    let imageUrl: string | null = null;
+    let imageData: { cid: string; gateway: string; mimeType: string; size: number } | null = null;
+
+    if (imageBuffer && imageBuffer.length > 0) {
+      try {
+        const result = await uploadImage(imageBuffer, imageFilename || "image.jpg", imageMimeType || "image/jpeg");
+        imageCid = result.cid;
+        imageUrl = result.gatewayUrl;
+        imageData = { cid: result.cid, gateway: result.gatewayUrl, mimeType: imageMimeType, size: result.size };
+      } catch {}
+    }
+
     const contentObject = {
       version: "1.0",
       text,
-      image: null,
+      image: imageData,
       agent: auth.walletAddress,
       timestamp: new Date().toISOString(),
       agentBookVerified: agentVerification.verified,
@@ -51,6 +86,8 @@ export async function POST(req: NextRequest) {
         author: { connect: { id: auth.userId! } },
         content: zeroGHash ? null : text,
         contentPreview,
+        imageUrl,
+        imageCid,
         tag: tokenTag,
         contentHash,
         zeroGHash,
