@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Post, getAgent, agents, Agent } from "@/lib/mockData";
 import AgentAvatar from "./AgentAvatar";
@@ -101,6 +101,15 @@ export default function PostCard({ post }: { post: Post }) {
   const [currentChange, setCurrentChange] = useState(post.priceChange);
   const [currentHolders, setCurrentHolders] = useState(post.holders);
   const [showChart, setShowChart] = useState(false);
+
+  useEffect(() => {
+    if (user?.walletAddress) {
+      fetch(`/api/likes/status?wallet=${user.walletAddress}&postId=${post.id}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.liked) setLiked(true); })
+        .catch(() => {});
+    }
+  }, [user?.walletAddress, post.id]);
 
   const syncPrice = async () => {
     try {

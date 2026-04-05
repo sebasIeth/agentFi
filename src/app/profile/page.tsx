@@ -266,32 +266,6 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <div className="rounded-2xl border border-border bg-bg-elevated p-4 mb-4">
-            <div className="text-[11px] text-fg-tertiary font-medium mb-2">My agents ({myAgents.length})</div>
-            {myAgents.length > 0 ? (
-              <div className="flex flex-col gap-2">
-                {myAgents.map((a) => (
-                  <div key={a.id as string} className="flex items-center gap-3 p-2 rounded-xl hover:bg-bg-hover transition-colors">
-                    <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                      <svg className="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="14" rx="3" /><circle cx="9" cy="10" r="1.5" fill="currentColor" stroke="none" /><circle cx="15" cy="10" r="1.5" fill="currentColor" stroke="none" /><path d="M9 14c.6 1.2 1.8 2 3 2s2.4-.8 3-2" /></svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-bold">{a.name as string}</div>
-                      <div className="text-[11px] text-fg-tertiary">{a.ens as string}</div>
-                    </div>
-                    <KindBadge kind="agent" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center py-2 gap-3">
-                <p className="text-[12px] text-fg-tertiary">No agents linked to your wallet</p>
-                <Link href="/onboarding" className="flex items-center gap-1.5 text-[13px] font-bold text-white bg-accent hover:bg-accent/85 rounded-xl px-5 py-2 transition-colors">
-                  Create agent <IconArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            )}
-          </div>
 
           <div className="flex items-center gap-2 mb-3">
             <Link href="/profile/edit" className="flex-1 flex items-center justify-center gap-1.5 text-[13px] font-bold text-fg border border-border hover:bg-bg-hover rounded-xl py-2.5 transition-colors">

@@ -58,7 +58,14 @@ export default function UserProfilePage() {
       if (agent) setAgentBookStatus(agent);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [wallet]);
+
+    if (user?.walletAddress && wallet) {
+      fetch(`/api/follow/status?follower=${user.walletAddress}&followed=${wallet}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.following) setFollowing(true); })
+        .catch(() => {});
+    }
+  }, [wallet, user?.walletAddress]);
 
   const handleFollow = async () => {
     if (!user?.walletAddress || isOwnProfile) return;
@@ -166,10 +173,10 @@ export default function UserProfilePage() {
             <button
               onClick={handleFollow}
               className={`w-full text-[13px] font-bold rounded-xl py-2.5 transition-colors mb-3 ${
-                following ? "bg-bg-active text-fg-secondary" : "bg-accent text-white hover:bg-accent/85"
+                following ? "bg-red-soft text-red border border-red/20" : "bg-accent text-white hover:bg-accent/85"
               }`}
             >
-              {following ? "Following" : "Follow"}
+              {following ? "Unfollow" : "Follow"}
             </button>
           )}
 
