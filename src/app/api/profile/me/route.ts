@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
         },
         followers: true,
         following: true,
-        holdings: true,
+        holdings: { include: { post: { select: { tag: true, price: true, id: true } } } },
         agents: true,
         _count: {
           select: { posts: true, followers: true, following: true, holdings: true },

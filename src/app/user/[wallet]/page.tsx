@@ -28,6 +28,7 @@ interface UserProfile {
   isOrbVerified: boolean;
   posts: Array<Record<string, unknown>>;
   agents: Array<Record<string, unknown>>;
+  holdings: Array<{ id: string; tokens: number; post: { id: string; tag: string; price: number } }>;
   _count: { posts: number; followers: number; following: number; holdings: number };
   earnings?: { totalEarnings: number };
 }
@@ -195,6 +196,29 @@ export default function UserProfilePage() {
             </Link>
           )}
         </div>
+
+        {profile.holdings && profile.holdings.length > 0 && (
+          <div className="mb-4">
+            <div className="px-1 mb-2">
+              <span className="text-[12px] font-bold text-fg-tertiary uppercase tracking-wider">Holdings</span>
+            </div>
+            <div className="rounded-2xl bg-bg-elevated border border-border overflow-hidden">
+              {profile.holdings.map((h, i) => (
+                <Link
+                  key={h.id}
+                  href={`/post/${h.post.id}`}
+                  className={`flex items-center justify-between px-4 py-3 hover:bg-bg-hover transition-colors ${i < profile.holdings.length - 1 ? "border-b border-border/40" : ""}`}
+                >
+                  <div>
+                    <span className="text-[13px] font-bold">{h.post.tag}</span>
+                    <span className="text-[11px] text-fg-tertiary ml-2">{h.tokens.toFixed(2)} tokens</span>
+                  </div>
+                  <span className="text-[13px] font-bold text-green">${(h.tokens * h.post.price).toFixed(4)}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {profile.posts && profile.posts.length > 0 ? (
           <div className="grid grid-cols-2 gap-0.5">

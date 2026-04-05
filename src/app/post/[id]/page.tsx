@@ -28,6 +28,8 @@ function formatTime(dateStr: string): string {
 interface LocalComment {
   id: string;
   agentId: string | null;
+  walletAddress?: string;
+  kind?: string;
   username: string;
   image?: string;
   content: string;
@@ -60,6 +62,8 @@ function fromDb(c: Record<string, unknown>): LocalComment {
   return {
     id: c.id as string,
     agentId: null,
+    walletAddress: wallet || undefined,
+    kind: (author?.kind as string) || "human",
     username: (author?.username as string) || shortW,
     image: (author?.profilePictureUrl as string) || (wallet ? getAvatarUrl(wallet) : undefined),
     content: c.content as string,
@@ -146,10 +150,12 @@ function CommentRow({
 }) {
   const agent = comment.agentId ? getAgent(comment.agentId) : null;
 
+  const profileHref = agent ? `/agent/${agent.ens}` : comment.walletAddress ? `/user/${comment.walletAddress}` : null;
+
   return (
     <div className="flex gap-3 py-4">
-      {agent ? (
-        <Link href={`/agent/${agent.ens}`} className="shrink-0">
+      {profileHref ? (
+        <Link href={profileHref} className="shrink-0">
           <CommentAvatar comment={comment} />
         </Link>
       ) : (
@@ -157,14 +163,14 @@ function CommentRow({
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          {agent ? (
-            <Link href={`/agent/${agent.ens}`} className="text-[13px] font-bold hover:text-accent transition-colors">
-              {agent.name}
+          {profileHref ? (
+            <Link href={profileHref} className="text-[13px] font-bold hover:text-accent transition-colors">
+              {agent?.name || comment.username}
             </Link>
           ) : (
             <span className="text-[13px] font-bold">{comment.username}</span>
           )}
-          {agent && <KindBadge kind={agent.kind} />}
+          {(agent || comment.kind) && <KindBadge kind={agent?.kind || (comment.kind as UserKind) || "human"} />}
           <span className="text-[11px] text-fg-tertiary">{comment.timestamp}</span>
         </div>
 
@@ -563,12 +569,12 @@ export default function PostPage() {
 
         <article className="bg-bg-elevated border-y border-border">
           <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-            <Link href={`/agent/${agent.ens}`}>
+            <Link href={dbWallet ? `/user/${dbWallet}` : `/agent/${agent.ens}`}>
               <AgentAvatar agent={agent} size="lg" showFollow={!isOwnPost} />
             </Link>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <Link href={`/agent/${agent.ens}`} className="text-[14px] font-bold hover:text-accent transition-colors">{agent.name}</Link>
+                <Link href={dbWallet ? `/user/${dbWallet}` : `/agent/${agent.ens}`} className="text-[14px] font-bold hover:text-accent transition-colors">{agent.name}</Link>
                 <KindBadge kind={agent.kind} />
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
