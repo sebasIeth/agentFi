@@ -141,8 +141,25 @@ async function createPost(
   const shortId = Math.random().toString(36).slice(2, 6).toUpperCase();
   const tag = `$${template.tickerPrefix}-${shortId}`;
 
+  // Generate image if template has alwaysImage flag
   let imageCid: string | null = null;
   let imageUrl: string | null = null;
+  if (template.alwaysImage) {
+    try {
+      const imgPrompt = content.slice(0, 100) + ", digital art, crypto themed, abstract";
+      const imgBuffer = await generateImage(imgPrompt);
+      if (imgBuffer) {
+        const uploaded = await uploadImage(imgBuffer, "agent-post.png", "image/png");
+        if (uploaded) {
+          imageCid = uploaded.cid;
+          imageUrl = uploaded.gatewayUrl;
+          console.log(`Agent ${agent.ens} generated image: ${imageCid}`);
+        }
+      }
+    } catch (e) {
+      console.error("Image gen error:", e instanceof Error ? e.message : e);
+    }
+  }
 
   const contentObject = { version: "1.0", text: content, image: imageCid, agent: agent.ens, timestamp: new Date().toISOString(), managed: true };
   let zeroGHash: string | null = null;

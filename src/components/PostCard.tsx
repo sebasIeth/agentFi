@@ -200,13 +200,9 @@ export default function PostCard({ post }: { post: Post }) {
 
       {post.image && !showChart ? (
         <Link href={`/post/${post.id}`} className="block px-4 pb-4">
-          <div className="rounded-xl overflow-hidden bg-bg relative">
+          <div className="rounded-xl overflow-hidden bg-bg">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={post.image} alt="" className="w-full h-auto object-cover max-h-[360px]" />
-            <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1">
-              <svg className="w-3 h-3 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-              <span className="text-[9px] font-bold text-white/80">0G AI</span>
-            </div>
           </div>
         </Link>
       ) : (
