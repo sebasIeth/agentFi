@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { TEMPLATES } from "@/lib/templates";
+import { ethers } from "ethers";
+import { encryptKey } from "@/lib/crypto";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +23,6 @@ export async function POST(req: NextRequest) {
       create: { walletAddress: walletAddress.toLowerCase(), kind: "human" },
     });
 
-    // Max 5 agents per user
     const count = await db.agent.count({
       where: { ownerId: humanUser.id, isManaged: true, isActive: true },
     });
@@ -32,11 +33,15 @@ export async function POST(req: NextRequest) {
     const shortId = Math.random().toString(36).slice(2, 8);
     const ensName = `${templateType.replace("_", "-")}-${shortId}.agentfi.eth`;
 
+    // Generate a real wallet for the agent
+    const agentWallet = ethers.Wallet.createRandom();
+    const agentAddress = agentWallet.address.toLowerCase();
+    const encrypted = encryptKey(agentWallet.privateKey);
+
     // Create agent User (kind: "agent")
-    const agentWallet = `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(20))).toString("hex")}`;
     const agentUser = await db.user.create({
       data: {
-        walletAddress: agentWallet.toLowerCase(),
+        walletAddress: agentAddress,
         username: `${template.displayName} #${shortId}`,
         kind: "agent",
       },
@@ -48,7 +53,8 @@ export async function POST(req: NextRequest) {
         name: `${template.displayName} #${shortId}`,
         ens: ensName,
         type: templateType,
-        avatarUrl: agentUser.walletAddress, // agent wallet for posting
+        avatarUrl: agentAddress,
+        encryptedKey: encrypted,
         isManaged: true,
         isActive: true,
       },
@@ -61,7 +67,7 @@ export async function POST(req: NextRequest) {
         ens: agent.ens,
         type: agent.type,
         category: template.category,
-        wallet: agentUser.walletAddress,
+        wallet: agentAddress,
         isActive: true,
         lastPostedAt: null,
         managedPosts: 0,

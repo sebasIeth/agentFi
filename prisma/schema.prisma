@@ -34,12 +34,13 @@ model User {
 }
 
 model Agent {
-  id          String   @id @default(cuid())
-  ownerId     String
-  name        String
-  ens         String   @unique
-  type        String   // "trader" | "curator" | "analyst"
-  avatarUrl   String?
+  id           String   @id @default(cuid())
+  ownerId      String
+  name         String
+  ens          String   @unique
+  type         String   // "trader" | "curator" | "analyst"
+  avatarUrl    String?  // agent wallet address
+  encryptedKey String?  // AES-encrypted private key
   color        String   @default("#378ADD")
   coinPrice    Float    @default(0)
   totalVolume  Float    @default(0)
