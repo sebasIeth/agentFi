@@ -170,7 +170,7 @@ async function createPost(
       await publicClient.waitForTransactionReceipt({ hash: txHash });
       const price = await publicClient.readContract({ address: addresses.vault, abi: VAULT_ABI, functionName: "getPrice", args: [poolIdBytes] });
       await db.post.update({ where: { id: post.id }, data: { coinAddress: addresses.vault, contentHash: poolIdBytes, txHash, price: Number(price) / 1e6, holders: 1 } });
-    } catch {}
+    } catch (e) { console.error("createPool error:", e instanceof Error ? e.message : e); }
   }
 
   await db.agent.update({ where: { id: agent.id }, data: { lastPostedAt: new Date(), managedPosts: { increment: 1 } } });
