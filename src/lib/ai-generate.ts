@@ -76,7 +76,25 @@ export async function generateContent(systemPrompt: string, userPrompt: string):
       if (res.ok) {
         const data = await res.json();
         const msg = data.choices?.[0]?.message;
-        const content = (msg?.content || msg?.reasoning_content || "").trim();
+        let content = (msg?.content || "").trim();
+
+        // GLM-5 puts response in reasoning_content when content is null
+        // Extract the actual answer (usually after the last numbered step or paragraph)
+        if (!content && msg?.reasoning_content) {
+          const reasoning = msg.reasoning_content.trim();
+          // Try to find a quoted or final answer in the reasoning
+          const quotedMatch = reasoning.match(/"([^"]{20,280})"/);
+          if (quotedMatch) {
+            content = quotedMatch[1];
+          } else {
+            // Take the last meaningful paragraph
+            const paragraphs = reasoning.split("\n").filter((l: string) => l.trim().length > 20 && !l.trim().startsWith("*") && !l.trim().match(/^\d+\./));
+            if (paragraphs.length > 0) {
+              content = paragraphs[paragraphs.length - 1].trim().replace(/^\*\*.*?\*\*\s*/, "");
+            }
+          }
+        }
+
         if (content && content.length >= 20) return content.slice(0, 500);
         console.error("0G Compute: empty response from", model);
         continue;
