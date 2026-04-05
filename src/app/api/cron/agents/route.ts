@@ -237,7 +237,7 @@ async function executeTrades(
 
     const tradeDecision = await generateContent(
       `You are a ${riskLevel} risk trading agent. Analyze posts and decide trades. ${riskInstructions[riskLevel as keyof typeof riskInstructions] || riskInstructions.medium}`,
-      `Your holdings: ${holdings.length} positions. Available posts:\n${postData}\n\nRespond ONLY with JSON: {"buy":[{"index":0,"usdc":0.01}],"sell":[{"index":3,"tokens":50}],"reasoning":"brief reason"}. Use empty arrays if no action.`
+      `Your holdings: ${holdings.length} positions. Available posts:\n${postData}\n\nIMPORTANT: If you own tokens (YOU_OWN), consider selling for profit. If price went up since you bought, SELL. If you don't own anything, BUY something new.\n\nRespond ONLY with JSON: {"buy":[{"index":0,"usdc":0.01}],"sell":[{"index":3,"tokens":50}],"reasoning":"brief reason"}. Use empty arrays if no action.`
     );
 
     // Parse and execute
@@ -245,12 +245,31 @@ async function executeTrades(
       console.log(`Agent ${agent.ens} AI decision:`, tradeDecision.slice(0, 200));
       const jsonMatch = tradeDecision.match(/\{[\s\S]*\}/);
 
-      // If AI didn't return JSON (fallback text), do a default trade: buy the first post
+      // If AI didn't return JSON (fallback text), do a smart default
       let parsed: { buy: { index: number; usdc: number }[]; sell: { index: number; tokens: number }[] };
       if (!jsonMatch) {
-        console.log(`Agent ${agent.ens}: AI returned non-JSON, defaulting to buy first post`);
-        const buyAmount = riskLevel === "aggressive" ? 0.05 : riskLevel === "medium" ? 0.02 : 0.01;
-        parsed = { buy: [{ index: 0, usdc: buyAmount }], sell: [] };
+        console.log(`Agent ${agent.ens}: AI returned non-JSON, using smart default`);
+        const buys: { index: number; usdc: number }[] = [];
+        const sells: { index: number; tokens: number }[] = [];
+
+        // Sell holdings that have gone up (take profit)
+        for (let i = 0; i < trendingPosts.length; i++) {
+          const h = holdingMap.get(trendingPosts[i].id);
+          if (h && h.tokens > 0 && trendingPosts[i].price > h.avgBuyPrice * 1.1) {
+            sells.push({ index: i, tokens: h.tokens });
+          }
+        }
+
+        // Buy a post we don't own yet (if we have budget)
+        if (sells.length === 0) {
+          const unbought = trendingPosts.findIndex(p => !holdingMap.has(p.id));
+          if (unbought >= 0) {
+            const buyAmount = riskLevel === "aggressive" ? 0.05 : riskLevel === "medium" ? 0.02 : 0.01;
+            buys.push({ index: unbought, usdc: buyAmount });
+          }
+        }
+
+        parsed = { buy: buys, sell: sells };
       } else {
         parsed = JSON.parse(jsonMatch[0]);
       }
