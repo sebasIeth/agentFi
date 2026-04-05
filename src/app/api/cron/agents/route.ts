@@ -225,8 +225,16 @@ async function executeTrades(
     try {
       console.log(`Agent ${agent.ens} AI decision:`, tradeDecision.slice(0, 200));
       const jsonMatch = tradeDecision.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return { trades };
-      const parsed = JSON.parse(jsonMatch[0]);
+
+      // If AI didn't return JSON (fallback text), do a default trade: buy the first post
+      let parsed: { buy: { index: number; usdc: number }[]; sell: { index: number; tokens: number }[] };
+      if (!jsonMatch) {
+        console.log(`Agent ${agent.ens}: AI returned non-JSON, defaulting to buy first post`);
+        const buyAmount = riskLevel === "aggressive" ? 0.05 : riskLevel === "medium" ? 0.02 : 0.01;
+        parsed = { buy: [{ index: 0, usdc: buyAmount }], sell: [] };
+      } else {
+        parsed = JSON.parse(jsonMatch[0]);
+      }
 
       const addresses = getContractAddresses();
       if (!addresses.vault) return { trades };
