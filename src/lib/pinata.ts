@@ -7,7 +7,7 @@ let _pinata: PinataSDK | null = null;
 
 function getPinata(): PinataSDK {
   if (!_pinata) {
-    const jwt = process.env.PINATA_JWT;
+    const jwt = process.env.PINATA_JWT?.replace(/\s+/g, "");
     if (!jwt) throw new Error("PINATA_JWT not configured");
     _pinata = new PinataSDK({
       pinataJwt: jwt,
