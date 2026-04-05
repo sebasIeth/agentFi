@@ -3,10 +3,8 @@ import { db } from "@/lib/db";
 import { TEMPLATES } from "@/lib/templates";
 import { generateContent } from "@/lib/ai-generate";
 import { uploadToZeroG } from "@/lib/zerog";
-import { keccak256, toHex, createWalletClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { publicClient, getBackendWallet, VAULT_ABI, getContractAddresses, worldchain } from "@/lib/chain";
-import { decryptKey } from "@/lib/crypto";
+import { keccak256, toHex } from "viem";
+import { publicClient, getBackendWallet, VAULT_ABI, getContractAddresses } from "@/lib/chain";
 
 async function getAgentUserId(agent: { avatarUrl: string | null; ownerId: string }) {
   if (agent.avatarUrl) {
@@ -181,7 +179,7 @@ async function createPost(
 
 // ─── TRADE LOGIC (for trader agents) ───
 async function executeTrades(
-  agent: { id: string; ens: string; type: string; encryptedKey: string | null },
+  agent: { id: string; ens: string; type: string },
   agentUserId: string,
   agentWallet: string,
   riskLevel: string
@@ -233,11 +231,8 @@ async function executeTrades(
 
       const ERC20_APPROVE_ABI = [{ name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] }] as const;
 
-      // Use agent's own wallet for trading
-      if (!agent.encryptedKey) { console.error(`Agent ${agent.ens} has no encrypted key`); return { trades }; }
-      const pk = decryptKey(agent.encryptedKey);
-      const account = privateKeyToAccount(pk as `0x${string}`);
-      const walletClient = createWalletClient({ account, chain: worldchain, transport: http(process.env.WORLD_CHAIN_RPC || "https://worldchain-mainnet.g.alchemy.com/public") });
+      // Relayer executes trades on behalf of agent (pays gas)
+      const { account, client: walletClient } = getBackendWallet();
 
       // Execute buys (on-chain via backend wallet)
       if (Array.isArray(parsed.buy)) {
