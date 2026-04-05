@@ -33,6 +33,7 @@ interface MyAgent {
   holdingsCount: number;
   totalTrades: number;
   totalVolume: number;
+  usdcBalance: number;
   recentTrades: Array<{ type: string; amount: number; tokens: number; tag: string; txHash: string | null; createdAt: string }>;
 }
 
@@ -117,9 +118,10 @@ function TemplateCard({ t, onSpawn, spawning, disabled }: {
   );
 }
 
-function AgentCard({ agent, onDeactivate }: { agent: MyAgent; onDeactivate: (id: string) => void }) {
+function AgentCard({ agent, onDeactivate, onWithdraw }: { agent: MyAgent; onDeactivate: (id: string) => void; onWithdraw: (agentId: string) => void }) {
   const isTrader = agent.category === "trader";
   const [copied, setCopied] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const copyWallet = () => {
     if (!agent.wallet) return;
@@ -200,6 +202,22 @@ function AgentCard({ agent, onDeactivate }: { agent: MyAgent; onDeactivate: (id:
           </>
         )}
       </div>
+      {agent.usdcBalance > 0 && (
+        <div className="flex items-center justify-between bg-green/5 border border-green/15 rounded-xl px-3 py-2.5 mb-3">
+          <div>
+            <div className="text-[10px] text-fg-tertiary font-medium">Earnings available</div>
+            <div className="text-[16px] font-extrabold text-green">${agent.usdcBalance.toFixed(4)}</div>
+          </div>
+          <button
+            onClick={async () => { setWithdrawing(true); await onWithdraw(agent.id); setWithdrawing(false); }}
+            disabled={withdrawing}
+            className={`text-[12px] font-bold text-white rounded-xl px-4 py-2 transition-colors ${withdrawing ? "bg-green/40" : "bg-green active:bg-green/80"}`}
+          >
+            {withdrawing ? "..." : "Withdraw"}
+          </button>
+        </div>
+      )}
+
       {isTrader && agent.recentTrades && agent.recentTrades.length > 0 && (
         <div className="mb-3">
           <div className="text-[10px] font-bold text-fg-tertiary uppercase tracking-wider mb-1.5">Recent trades</div>
@@ -289,6 +307,23 @@ export default function MarketplacePage() {
     } catch {}
   };
 
+  const handleWithdraw = async (agentId: string) => {
+    if (!user?.walletAddress) return;
+    try {
+      const res = await fetch("/api/v1/marketplace/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress: user.walletAddress, agentId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMyAgents((prev) => prev.map((a) => a.id === agentId ? { ...a, usdcBalance: 0 } : a));
+      } else {
+        setError(data.error || "Withdraw failed");
+      }
+    } catch { setError("Withdraw failed"); }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Topbar />
@@ -304,7 +339,7 @@ export default function MarketplacePage() {
             <div className="text-[12px] font-bold text-fg-tertiary uppercase tracking-wider mb-2">Your agents</div>
             <div className="flex flex-col gap-3">
               {myAgents.map((a) => (
-                <AgentCard key={a.id} agent={a} onDeactivate={handleDeactivate} />
+                <AgentCard key={a.id} agent={a} onDeactivate={handleDeactivate} onWithdraw={handleWithdraw} />
               ))}
             </div>
           </div>

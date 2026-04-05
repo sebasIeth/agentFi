@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { TEMPLATES } from "@/lib/templates";
+import { publicClient, getContractAddresses } from "@/lib/chain";
 
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get("wallet");
@@ -70,8 +71,24 @@ export async function GET(req: NextRequest) {
         txHash: t.txHash,
         createdAt: t.createdAt,
       })),
+      usdcBalance: 0,
     };
   }));
+
+  // Fetch on-chain USDC balances for all agents
+  const addresses = getContractAddresses();
+  const ERC20_BALANCE = [{ name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] }] as const;
+
+  for (const agent of agentData) {
+    if (agent.wallet) {
+      try {
+        const bal = await publicClient.readContract({
+          address: addresses.usdc, abi: ERC20_BALANCE, functionName: "balanceOf", args: [agent.wallet as `0x${string}`],
+        });
+        agent.usdcBalance = Number(bal) / 1e6;
+      } catch {}
+    }
+  }
 
   return NextResponse.json({ agents: agentData });
 }
