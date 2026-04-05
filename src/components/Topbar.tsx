@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { getAvatarUrl } from "@/lib/avatar";
 
 export default function Topbar() {
   const { user, signIn, isMiniApp, isLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const shortAddr = user?.walletAddress
     ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}`
@@ -14,10 +17,20 @@ export default function Topbar() {
   return (
     <header className="sticky top-0 z-50">
       <div className="h-12 max-w-[480px] mx-auto flex items-center justify-between px-4 border-b border-border bg-bg-elevated/90 backdrop-blur-xl">
-        <Link href="/feed" className="flex items-center gap-1">
+        <button
+          onClick={() => {
+            if (pathname === "/feed" || pathname === "/") {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              router.refresh();
+            } else {
+              router.push("/feed");
+            }
+          }}
+          className="flex items-center gap-1"
+        >
           <span className="text-[17px] font-extrabold tracking-tighter text-fg">agent</span>
           <span className="text-[17px] font-extrabold tracking-tighter text-accent">fi</span>
-        </Link>
+        </button>
 
         <div className="flex items-center gap-2.5">
           {user?.isConnected && shortAddr && (
