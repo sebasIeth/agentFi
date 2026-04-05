@@ -22,8 +22,23 @@ export async function uploadToZeroG(content: string): Promise<string> {
   const rootHash = tree!.rootHash() as string;
 
   const indexer = new Indexer(ZERO_G_INDEXER);
-  const [, uploadErr] = await indexer.upload(memData, ZERO_G_RPC, signer);
-  if (uploadErr) throw new Error(`0G upload error: ${uploadErr}`);
+
+  try {
+    const [, uploadErr] = await indexer.upload(memData, ZERO_G_RPC, signer);
+    if (uploadErr) {
+      const errStr = String(uploadErr);
+      if (errStr.includes("revert") || errStr.includes("already") || errStr.includes("duplicate")) {
+        return rootHash;
+      }
+      throw new Error(`0G upload error: ${uploadErr}`);
+    }
+  } catch (err) {
+    const errStr = String(err);
+    if (errStr.includes("revert") || errStr.includes("CALL_EXCEPTION")) {
+      return rootHash;
+    }
+    throw err;
+  }
 
   return rootHash;
 }
