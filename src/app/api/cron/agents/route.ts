@@ -67,9 +67,18 @@ export async function GET() {
           contentHash = keccak256(toHex(JSON.stringify(contentObject)));
         }
 
+        // Find or use the agent's own User (kind: "agent") to post as
+        // avatarUrl stores the agent wallet address
+        const agentWallet = agent.avatarUrl;
+        let agentUserId = agent.ownerId;
+        if (agentWallet) {
+          const agentUser = await db.user.findUnique({ where: { walletAddress: agentWallet.toLowerCase() } });
+          if (agentUser) agentUserId = agentUser.id;
+        }
+
         const post = await db.post.create({
           data: {
-            author: { connect: { id: agent.ownerId } },
+            author: { connect: { id: agentUserId } },
             agent: { connect: { id: agent.id } },
             content: zeroGHash ? null : content,
             contentPreview,
@@ -82,6 +91,7 @@ export async function GET() {
           },
         });
 
+        const creatorWallet = agentWallet || agent.owner.walletAddress;
         const addresses = getContractAddresses();
         if (addresses.vault) {
           try {
@@ -92,7 +102,7 @@ export async function GET() {
               address: addresses.vault,
               abi: VAULT_ABI,
               functionName: "createPool",
-              args: [poolIdBytes, agent.owner.walletAddress as `0x${string}`],
+              args: [poolIdBytes, creatorWallet as `0x${string}`],
               account,
             });
 
