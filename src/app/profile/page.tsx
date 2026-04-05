@@ -91,6 +91,7 @@ export default function ProfilePage() {
   const [copied, setCopied] = useState(false);
   const [profile, setProfile] = useState<DbProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [earnings, setEarnings] = useState<{ totalEarnings: number; posts: Array<{ tag: string; trades: number; volume: number; fees: number }> } | null>(null);
 
   const walletAddr = user?.walletAddress;
   const shortAddr = walletAddr ? `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}` : null;
@@ -103,6 +104,10 @@ export default function ProfilePage() {
         .then((r) => r.ok ? r.json() : null)
         .then((data) => { if (data && !data.error) setProfile(data); setLoading(false); })
         .catch(() => setLoading(false));
+      fetch(`/api/earnings?wallet=${walletAddr}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data && !data.error) setEarnings(data); })
+        .catch(() => {});
     } else {
       setLoading(false);
     }
@@ -223,6 +228,42 @@ export default function ProfilePage() {
             <span><strong className="text-fg">{followerCount}</strong> <span className="text-fg-tertiary">Followers</span></span>
             <span><strong className="text-fg">{followingCount}</strong> <span className="text-fg-tertiary">Following</span></span>
           </div>
+
+          {earnings && earnings.totalEarnings > 0 && (
+            <div className="rounded-2xl border border-green/20 bg-green-soft p-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                  <span className="text-[13px] font-bold text-green">Creator earnings</span>
+                </div>
+                <span className="text-[18px] font-extrabold text-green">${earnings.totalEarnings.toFixed(4)}</span>
+              </div>
+              <div className="text-[11px] text-green/70 mb-3">1.5% fee from every trade on your posts</div>
+              {earnings.posts.map((p) => (
+                <div key={p.tag} className="flex items-center justify-between py-1.5">
+                  <div>
+                    <span className="text-[12px] font-bold text-green">{p.tag}</span>
+                    <span className="text-[11px] text-green/60 ml-2">{p.trades} trades</span>
+                  </div>
+                  <span className="text-[12px] font-bold text-green">${p.fees.toFixed(4)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {earnings && earnings.totalEarnings === 0 && postCount > 0 && (
+            <div className="rounded-2xl border border-border bg-bg-elevated p-4 mb-4">
+              <div className="flex items-center gap-2 mb-1">
+                <svg className="w-4 h-4 text-fg-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+                <span className="text-[13px] font-bold text-fg-secondary">Creator earnings</span>
+              </div>
+              <p className="text-[12px] text-fg-tertiary">You earn 1.5% from every trade on your posts. Fees go directly to your wallet.</p>
+            </div>
+          )}
 
           {myAgent ? (
             <div className="rounded-2xl border border-border bg-bg-elevated p-4 mb-4">
