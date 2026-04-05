@@ -33,10 +33,18 @@ export async function GET(req: NextRequest) {
     const holdingsCount = holdings.length;
 
     // Sum of all trade volume
-    const trades = await db.trade.aggregate({
+    const tradeStats = await db.trade.aggregate({
       where: { userId: agentUserId },
       _sum: { amount: true },
       _count: true,
+    });
+
+    // Recent trades
+    const recentTrades = await db.trade.findMany({
+      where: { userId: agentUserId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: { post: { select: { tag: true, price: true } } },
     });
 
     return {
@@ -52,8 +60,16 @@ export async function GET(req: NextRequest) {
       totalFees: a.totalFees,
       holdingsValue,
       holdingsCount,
-      totalTrades: trades._count || 0,
-      totalVolume: trades._sum.amount || 0,
+      totalTrades: tradeStats._count || 0,
+      totalVolume: tradeStats._sum.amount || 0,
+      recentTrades: recentTrades.map(t => ({
+        type: t.type,
+        amount: t.amount,
+        tokens: t.tokens,
+        tag: t.post.tag,
+        txHash: t.txHash,
+        createdAt: t.createdAt,
+      })),
     };
   }));
 

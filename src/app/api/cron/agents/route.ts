@@ -177,6 +177,25 @@ async function createPost(
   return true;
 }
 
+// ─── SYNC POST AFTER TRADE ───
+async function syncPostAfterTrade(postId: string, poolId: `0x${string}`) {
+  try {
+    const addresses = getContractAddresses();
+    const [price, holders] = await Promise.all([
+      publicClient.readContract({ address: addresses.vault, abi: VAULT_ABI, functionName: "getPrice", args: [poolId] }),
+      publicClient.readContract({ address: addresses.vault, abi: VAULT_ABI, functionName: "holderCount", args: [poolId] }),
+    ]);
+    const newPrice = Number(price) / 1e6;
+    const post = await db.post.findUnique({ where: { id: postId } });
+    const oldPrice = post?.price || 0;
+    const priceChange = oldPrice > 0 ? ((newPrice - oldPrice) / oldPrice) * 100 : 0;
+    await db.post.update({ where: { id: postId }, data: { price: newPrice, priceChange, holders: Number(holders) } });
+    if (post?.coinAddress) {
+      await db.coinSnapshot.create({ data: { coinAddress: post.coinAddress, postId, price: newPrice, marketCap: 0, holders: Number(holders) } });
+    }
+  } catch {}
+}
+
 // ─── TRADE LOGIC (for trader agents) ───
 async function executeTrades(
   agent: { id: string; ens: string; type: string },
@@ -307,6 +326,7 @@ async function executeTrades(
               await db.holding.create({ data: { userId: agentUserId, postId: post.id, tokens: Number(tokensOut) / 1e18, avgBuyPrice: post.price } });
             }
 
+            await syncPostAfterTrade(post.id, poolId);
             trades++;
             console.log(`Agent ${agent.ens} bought ${post.tag} for $${usdcAmount} tx:${buyTx}`);
           } catch (e) {
@@ -346,6 +366,7 @@ async function executeTrades(
               await db.holding.update({ where: { id: holding.id }, data: { tokens: remaining } });
             }
 
+            await syncPostAfterTrade(post.id, poolId);
             trades++;
             console.log(`Agent ${agent.ens} sold ${post.tag} ${sellTokens} tokens tx:${sellTx}`);
           } catch (e) {
@@ -354,9 +375,17 @@ async function executeTrades(
         }
       }
 
-      // Update last active timestamp
+      // Update last active timestamp and trade volume
       if (trades > 0) {
-        await db.agent.update({ where: { id: agent.id }, data: { lastPostedAt: new Date(), managedPosts: { increment: trades } } });
+        const totalSpent = parsed.buy?.reduce((s: number, b: { usdc?: number }) => s + (b.usdc || 0.01), 0) || 0;
+        await db.agent.update({
+          where: { id: agent.id },
+          data: {
+            lastPostedAt: new Date(),
+            managedPosts: { increment: trades },
+            totalVolume: { increment: totalSpent },
+          },
+        });
       }
     } catch (e) {
       console.error("Trade parse error:", e instanceof Error ? e.message : e);

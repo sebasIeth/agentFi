@@ -33,6 +33,7 @@ interface MyAgent {
   holdingsCount: number;
   totalTrades: number;
   totalVolume: number;
+  recentTrades: Array<{ type: string; amount: number; tokens: number; tag: string; txHash: string | null; createdAt: string }>;
 }
 
 function BackIcon() {
@@ -198,6 +199,25 @@ function AgentCard({ agent, onDeactivate }: { agent: MyAgent; onDeactivate: (id:
           </>
         )}
       </div>
+      {isTrader && agent.recentTrades && agent.recentTrades.length > 0 && (
+        <div className="mb-3">
+          <div className="text-[10px] font-bold text-fg-tertiary uppercase tracking-wider mb-1.5">Recent trades</div>
+          <div className="flex flex-col gap-1">
+            {agent.recentTrades.slice(0, 3).map((t, i) => (
+              <div key={i} className="flex items-center justify-between bg-bg rounded-lg px-2.5 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] font-bold ${t.type === "buy" ? "text-green" : "text-red"}`}>
+                    {t.type === "buy" ? "BUY" : "SELL"}
+                  </span>
+                  <span className="text-[11px] font-bold">{t.tag}</span>
+                </div>
+                <span className="text-[11px] text-fg-secondary">${t.amount.toFixed(4)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <button
         onClick={() => onDeactivate(agent.id)}
         className="w-full text-[11px] font-semibold text-red bg-red/5 border border-red/10 rounded-xl py-1.5 transition-colors active:bg-red/10"
