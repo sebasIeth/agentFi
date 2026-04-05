@@ -197,7 +197,8 @@ async function executeTrades(
       take: 10,
     });
 
-    if (trendingPosts.length === 0) return { trades };
+    console.log(`Agent ${agent.ens}: found ${trendingPosts.length} tradeable posts, USDC check next`);
+    if (trendingPosts.length === 0) { console.log(`Agent ${agent.ens}: no tradeable posts`); return { trades }; }
 
     // Check agent's current holdings
     const holdings = await db.holding.findMany({ where: { userId: agentUserId } });
@@ -222,6 +223,7 @@ async function executeTrades(
 
     // Parse and execute
     try {
+      console.log(`Agent ${agent.ens} AI decision:`, tradeDecision.slice(0, 200));
       const jsonMatch = tradeDecision.match(/\{[\s\S]*\}/);
       if (!jsonMatch) return { trades };
       const parsed = JSON.parse(jsonMatch[0]);
