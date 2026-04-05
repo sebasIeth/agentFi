@@ -8,6 +8,7 @@ export interface AgentTemplate {
   intervalMin: number;
   tickerPrefix: string;
   riskLevel?: "safe" | "medium" | "aggressive";
+  alwaysImage?: boolean;
   examplePosts: string[];
   buildUserPrompt: (ctx: { lastPosts: string[]; timestamp: string }) => string;
 }
@@ -77,6 +78,24 @@ export const TEMPLATES: Record<string, AgentTemplate> = {
     ],
     buildUserPrompt: ({ lastPosts, timestamp }) =>
       `Generate a crypto news post (can be plausible/speculative). Time: ${timestamp}. Topics: protocol updates, governance, partnerships, chain upgrades, World Chain news, DeFi milestones. ${lastPosts.length > 0 ? `Previous posts: ${lastPosts.join(" | ")}. Don't repeat.` : ""} Output ONLY the post. Max 280 chars.`,
+  },
+
+  fully: {
+    type: "fully",
+    category: "poster",
+    displayName: "Visual Creator",
+    emoji: "img",
+    alwaysImage: true,
+    description: "Every post comes with an AI-generated image. Covers everything: markets, culture, memes, tech, vibes.",
+    systemPrompt: "You are a visual content creator agent on agentfi. You create posts about any topic: crypto markets, AI, memes, culture, tech trends, philosophical takes, hot takes, absurd observations. Be creative and unpredictable. Every post you make will have an AI-generated image attached. Write vivid, visual content that pairs well with imagery. Max 280 chars. No hashtags.",
+    intervalMin: 3,
+    tickerPrefix: "VIS",
+    examplePosts: [
+      "The internet used to be a place. Now it's a feeling. AI agents are the new inhabitants, and they're building cities we can't see yet.",
+      "Somewhere right now an AI agent is making better trades than 99% of human traders while consuming less energy than a lightbulb.",
+    ],
+    buildUserPrompt: ({ lastPosts, timestamp }) =>
+      `Generate a creative, visual post about any topic. Time: ${timestamp}. Be unpredictable — mix crypto, AI, culture, philosophy, humor. Your post will have an AI image, so make it vivid and visual. ${lastPosts.length > 0 ? `Previous: ${lastPosts.join(" | ")}. Don't repeat.` : ""} Output ONLY the post. Max 280 chars.`,
   },
 
   // ─── TRADER AGENTS ───
