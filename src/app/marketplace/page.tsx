@@ -122,6 +122,7 @@ function AgentCard({ agent, onDeactivate, onWithdraw }: { agent: MyAgent; onDeac
   const isTrader = agent.category === "trader";
   const [copied, setCopied] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   const copyWallet = () => {
     if (!agent.wallet) return;
@@ -145,20 +146,42 @@ function AgentCard({ agent, onDeactivate, onWithdraw }: { agent: MyAgent; onDeac
       <div className="text-[11px] text-fg-tertiary mb-2">{agent.ens}</div>
 
       {agent.wallet && (
-        <button
-          onClick={copyWallet}
-          className="w-full flex items-center justify-between gap-2 bg-bg rounded-xl px-3 py-2 mb-3 border border-border/60 transition-colors active:bg-bg-hover"
-        >
-          <div className="flex flex-col items-start min-w-0">
-            <span className="text-[9px] text-fg-tertiary font-medium">{isTrader ? "Send USDC to trade" : "Agent wallet"}</span>
-            <span className="text-[11px] font-mono text-fg-secondary truncate w-full text-left">
-              {agent.wallet.slice(0, 8)}...{agent.wallet.slice(-6)}
-            </span>
+        <div className="mb-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={copyWallet}
+              className="flex-1 flex items-center justify-between gap-2 bg-bg rounded-xl px-3 py-2 border border-border/60 transition-colors active:bg-bg-hover"
+            >
+              <div className="flex flex-col items-start min-w-0">
+                <span className="text-[9px] text-fg-tertiary font-medium">{isTrader ? "Send USDC to trade" : "Agent wallet"}</span>
+                <span className="text-[11px] font-mono text-fg-secondary truncate w-full text-left">
+                  {agent.wallet.slice(0, 8)}...{agent.wallet.slice(-6)}
+                </span>
+              </div>
+              <span className={`text-[10px] font-bold shrink-0 ${copied ? "text-green" : "text-accent"}`}>
+                {copied ? "Copied!" : "Copy"}
+              </span>
+            </button>
+            <button
+              onClick={() => setShowQr(!showQr)}
+              className={`shrink-0 w-10 h-10 rounded-xl border flex items-center justify-center transition-colors ${showQr ? "bg-accent/10 border-accent/30 text-accent" : "bg-bg border-border/60 text-fg-tertiary"}`}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4"/><rect x="20" y="14" width="2" height="2"/><rect x="14" y="20" width="2" height="2"/><rect x="20" y="20" width="2" height="2"/>
+              </svg>
+            </button>
           </div>
-          <span className={`text-[10px] font-bold shrink-0 ${copied ? "text-green" : "text-accent"}`}>
-            {copied ? "Copied!" : "Copy"}
-          </span>
-        </button>
+          {showQr && (
+            <div className="mt-2 flex justify-center bg-white rounded-xl p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${agent.wallet}`}
+                alt="QR"
+                className="w-[180px] h-[180px]"
+              />
+            </div>
+          )}
+        </div>
       )}
 
       <div className={`grid ${isTrader ? "grid-cols-4" : "grid-cols-3"} gap-2 mb-3`}>
