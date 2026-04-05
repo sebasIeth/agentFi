@@ -39,6 +39,20 @@ function BackIcon() {
   );
 }
 
+function TemplateIcon({ type }: { type: string }) {
+  const cls = "w-5 h-5";
+  switch (type) {
+    case "alpha": return <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>;
+    case "analyst": return <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-6"/></svg>;
+    case "vibes": return <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>;
+    case "news": return <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>;
+    case "trader_safe": return <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+    case "trader_mid": return <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 3v18"/><path d="M3 12h18"/><circle cx="12" cy="12" r="9"/></svg>;
+    case "trader_degen": return <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 4l16 16"/><path d="M20 4L4 20"/><circle cx="12" cy="12" r="3"/></svg>;
+    default: return <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/></svg>;
+  }
+}
+
 function RiskBadge({ level }: { level: string }) {
   const colors = {
     safe: "bg-green/10 text-green border-green/20",
@@ -62,8 +76,10 @@ function TemplateCard({ t, onSpawn, spawning, disabled }: {
   return (
     <div className="min-w-[280px] max-w-[280px] rounded-2xl bg-bg-elevated border border-border p-4 snap-start shrink-0">
       <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">{t.emoji}</span>
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
+            <TemplateIcon type={t.type} />
+          </div>
           <div>
             <h3 className="text-[14px] font-extrabold leading-tight">{t.displayName}</h3>
             <span className="text-[10px] text-fg-tertiary">Every {t.intervalMin}min</span>
@@ -108,30 +124,30 @@ function AgentCard({ agent, onDeactivate }: { agent: MyAgent; onDeactivate: (id:
   };
 
   return (
-    <div className="rounded-2xl border border-green/20 bg-green-soft p-4">
+    <div className="rounded-2xl bg-bg-elevated border border-border p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-green" />
-          <span className="text-[13px] font-bold text-green">{agent.name}</span>
+          <div className="w-2 h-2 rounded-full bg-green animate-pulse" />
+          <span className="text-[13px] font-extrabold text-fg">{agent.name}</span>
         </div>
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-          isTrader ? "bg-accent/10 text-accent" : "bg-fg/10 text-fg-secondary"
+          isTrader ? "bg-accent/10 text-accent" : "bg-fg/5 text-fg-secondary"
         }`}>{isTrader ? "Trader" : "Poster"}</span>
       </div>
-      <div className="text-[11px] text-green/60 mb-2">{agent.ens}</div>
+      <div className="text-[11px] text-fg-tertiary mb-2">{agent.ens}</div>
 
       {agent.wallet && (
         <button
           onClick={copyWallet}
-          className="w-full flex items-center justify-between gap-2 bg-white/40 rounded-xl px-3 py-2 mb-3 transition-colors active:bg-white/60"
+          className="w-full flex items-center justify-between gap-2 bg-bg rounded-xl px-3 py-2 mb-3 border border-border/60 transition-colors active:bg-bg-hover"
         >
           <div className="flex flex-col items-start min-w-0">
-            <span className="text-[9px] text-green/50 font-medium">{isTrader ? "Send USDC to trade" : "Agent wallet"}</span>
-            <span className="text-[11px] font-mono text-green truncate w-full text-left">
+            <span className="text-[9px] text-fg-tertiary font-medium">{isTrader ? "Send USDC to trade" : "Agent wallet"}</span>
+            <span className="text-[11px] font-mono text-fg-secondary truncate w-full text-left">
               {agent.wallet.slice(0, 8)}...{agent.wallet.slice(-6)}
             </span>
           </div>
-          <span className="text-[10px] font-bold text-green shrink-0">
+          <span className={`text-[10px] font-bold shrink-0 ${copied ? "text-green" : "text-accent"}`}>
             {copied ? "Copied!" : "Copy"}
           </span>
         </button>
@@ -139,23 +155,23 @@ function AgentCard({ agent, onDeactivate }: { agent: MyAgent; onDeactivate: (id:
 
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div>
-          <div className="text-[14px] font-extrabold text-green">{agent.managedPosts}</div>
-          <div className="text-[9px] text-green/50">{isTrader ? "Trades" : "Posts"}</div>
+          <div className="text-[14px] font-extrabold text-fg">{agent.managedPosts}</div>
+          <div className="text-[9px] text-fg-tertiary">{isTrader ? "Trades" : "Posts"}</div>
         </div>
         <div>
-          <div className="text-[14px] font-extrabold text-green">${agent.totalFees.toFixed(4)}</div>
-          <div className="text-[9px] text-green/50">Earned</div>
+          <div className="text-[14px] font-extrabold text-fg">${agent.totalFees.toFixed(4)}</div>
+          <div className="text-[9px] text-fg-tertiary">Earned</div>
         </div>
         <div>
-          <div className="text-[14px] font-extrabold text-green">
+          <div className="text-[14px] font-extrabold text-fg">
             {agent.lastPostedAt ? new Date(agent.lastPostedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
           </div>
-          <div className="text-[9px] text-green/50">Last active</div>
+          <div className="text-[9px] text-fg-tertiary">Last active</div>
         </div>
       </div>
       <button
         onClick={() => onDeactivate(agent.id)}
-        className="w-full text-[11px] font-semibold text-red bg-white/50 rounded-xl py-1.5"
+        className="w-full text-[11px] font-semibold text-red bg-red/5 border border-red/10 rounded-xl py-1.5 transition-colors active:bg-red/10"
       >
         Deactivate
       </button>
