@@ -3,10 +3,9 @@ import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
 
 const ZERO_G_RPC = process.env.ZERO_G_RPC || "https://evmrpc.0g.ai";
 
-// DeepSeek primary, GLM-5 fallback
-const DEEPSEEK = "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0";
-const GLM5 = "0xd9966e13a6026Fcca4b13E7ff95c94DE268C471C";
-const PROVIDER_CHAIN = [DEEPSEEK, GLM5];
+const PROVIDER_CHAIN = [
+  "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0", // DeepSeek v3 (primary)
+];
 
 type Broker = Awaited<ReturnType<typeof createZGComputeNetworkBroker>>;
 let brokerInstance: Broker | null = null;
@@ -76,25 +75,7 @@ export async function generateContent(systemPrompt: string, userPrompt: string):
       if (res.ok) {
         const data = await res.json();
         const msg = data.choices?.[0]?.message;
-        let content = (msg?.content || "").trim();
-
-        // GLM-5 puts response in reasoning_content when content is null
-        // Extract the actual answer (usually after the last numbered step or paragraph)
-        if (!content && msg?.reasoning_content) {
-          const reasoning = msg.reasoning_content.trim();
-          // Try to find a quoted or final answer in the reasoning
-          const quotedMatch = reasoning.match(/"([^"]{20,280})"/);
-          if (quotedMatch) {
-            content = quotedMatch[1];
-          } else {
-            // Take the last meaningful paragraph
-            const paragraphs = reasoning.split("\n").filter((l: string) => l.trim().length > 20 && !l.trim().startsWith("*") && !l.trim().match(/^\d+\./));
-            if (paragraphs.length > 0) {
-              content = paragraphs[paragraphs.length - 1].trim().replace(/^\*\*.*?\*\*\s*/, "");
-            }
-          }
-        }
-
+        const content = (msg?.content || msg?.reasoning_content || "").trim();
         if (content && content.length >= 20) return content.slice(0, 500);
         console.error("0G Compute: empty response from", model);
         continue;
