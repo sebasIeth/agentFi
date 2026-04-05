@@ -446,7 +446,6 @@ export default function PostPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: user!.walletAddress, postId: post!.id, content: text }),
       });
-      setTimeout(reloadComments, 500);
     } catch {}
   };
 
@@ -462,7 +461,6 @@ export default function PostPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: user!.walletAddress, postId: post!.id, parentId, content: text }),
       });
-      setTimeout(reloadComments, 500);
     } catch {}
   };
 

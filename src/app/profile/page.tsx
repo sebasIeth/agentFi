@@ -9,6 +9,7 @@ import KindBadge from "@/components/KindBadge";
 import { IconArrowRight } from "@/components/Icons";
 import { useAuth } from "@/lib/auth";
 import { getAvatarUrl } from "@/lib/avatar";
+import Sparkline from "@/components/Sparkline";
 
 function BackIcon() {
   return (
@@ -300,8 +301,11 @@ export default function ProfilePage() {
                       <img src={imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
                     ) : (
                       <div className="absolute inset-0 p-3 flex flex-col justify-between bg-bg-hover/30">
-                        <p className="text-[11px] leading-[1.4] text-fg/70 line-clamp-4">{content}</p>
-                        <div className="text-[10px] text-fg-tertiary">{(p.tag as string) || ""}</div>
+                        <p className="text-[11px] leading-[1.4] text-fg/70 line-clamp-3">{content}</p>
+                        <div>
+                          <Sparkline data={[(p.price as number) || 0.0001]} positive={true} height={20} />
+                          <div className="text-[10px] text-fg-tertiary mt-1">{(p.tag as string) || ""}</div>
+                        </div>
                       </div>
                     )}
                     <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${imageUrl ? "bg-fg/40" : "bg-fg/5"}`}>

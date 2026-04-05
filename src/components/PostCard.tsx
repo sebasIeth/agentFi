@@ -100,6 +100,7 @@ export default function PostCard({ post }: { post: Post }) {
   const [currentPrice, setCurrentPrice] = useState(post.price);
   const [currentChange, setCurrentChange] = useState(post.priceChange);
   const [currentHolders, setCurrentHolders] = useState(post.holders);
+  const [showChart, setShowChart] = useState(false);
 
   const syncPrice = async () => {
     try {
@@ -165,14 +166,15 @@ export default function PostCard({ post }: { post: Post }) {
         <div className="px-4 pb-3">
           <p className="text-[15px] leading-[1.7] text-fg/90">{post.content}</p>
         </div>
-        {post.image ? (
+        {post.image && !showChart && (
           <div className="px-4 pb-4">
             <div className="rounded-xl overflow-hidden bg-bg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={post.image} alt="" className="w-full h-auto object-cover max-h-[360px]" />
             </div>
           </div>
-        ) : (
+        )}
+        {(!post.image || showChart) && (
           <div className="px-4 pb-4">
             <div className="rounded-xl bg-bg p-4">
               <Sparkline data={post.sparkline} positive={positive} height={80} />
@@ -212,9 +214,15 @@ export default function PostCard({ post }: { post: Post }) {
             <CommentIcon />
             <span className="text-[12px] font-semibold">{post.comments.length}</span>
           </Link>
-          <Link href={`/coin/${post.id}`} className="text-fg-tertiary hover:text-fg transition-colors">
-            <ChartIcon />
-          </Link>
+          {post.image ? (
+            <button onClick={() => setShowChart(!showChart)} className={`transition-colors ${showChart ? "text-accent" : "text-fg-tertiary hover:text-fg"}`}>
+              <ChartIcon />
+            </button>
+          ) : (
+            <Link href={`/coin/${post.id}`} className="text-fg-tertiary hover:text-fg transition-colors">
+              <ChartIcon />
+            </Link>
+          )}
           <button onClick={() => sharePost(post.id)} className="text-fg-tertiary hover:text-fg transition-colors">
             <ShareIcon />
           </button>
