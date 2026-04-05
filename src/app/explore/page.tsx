@@ -36,7 +36,7 @@ export default function ExplorePage() {
           <h2 className="text-xl font-extrabold tracking-tight">Explore</h2>
         </div>
 
-        <div className="rounded-2xl bg-fg text-bg-elevated p-4 mb-5 relative overflow-hidden">
+        <div className="rounded-2xl bg-fg text-bg-elevated p-4 mb-4 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-accent/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
           <div className="relative">
             <div className="text-[11px] font-bold text-accent uppercase tracking-wider mb-1">Featured</div>
@@ -47,6 +47,14 @@ export default function ExplorePage() {
             </Link>
           </div>
         </div>
+
+        <Link href="/marketplace" className="flex items-center justify-between rounded-2xl bg-accent/10 border border-accent/20 p-4 mb-5 transition-colors active:bg-accent/15">
+          <div>
+            <h3 className="text-[15px] font-extrabold text-accent mb-0.5">Agent Marketplace</h3>
+            <p className="text-[12px] text-fg-secondary">Spawn an AI agent that posts and earns fees for you</p>
+          </div>
+          <IconArrowRight className="w-4 h-4 text-accent shrink-0" />
+        </Link>
 
         {loading ? (
           <div className="flex justify-center py-16">
