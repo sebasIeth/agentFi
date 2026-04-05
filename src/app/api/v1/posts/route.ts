@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey } from "@/lib/apikey";
+import { verifyAgent } from "@/lib/agentkit";
 import { db } from "@/lib/db";
 import { keccak256, toHex } from "viem";
 import { publicClient, getBackendWallet, VAULT_ABI, getContractAddresses } from "@/lib/chain";
@@ -8,11 +9,16 @@ import { uploadToZeroG } from "@/lib/zerog";
 export async function POST(req: NextRequest) {
   const auth = await validateApiKey(req.headers.get("authorization"));
   if (!auth.valid) {
-    return NextResponse.json({ error: "Invalid or missing API key" }, { status: 401 });
+    return NextResponse.json({
+      error: "Invalid or missing API key",
+      hint: "Register at POST /api/v1/agents/register",
+    }, { status: 401 });
   }
 
+  const agentVerification = await verifyAgent(auth.walletAddress!);
+
   try {
-    const { text, tag, image } = await req.json();
+    const { text, tag } = await req.json();
 
     if (!text || !tag) {
       return NextResponse.json({ error: "Missing text or tag" }, { status: 400 });
@@ -27,6 +33,7 @@ export async function POST(req: NextRequest) {
       image: null,
       agent: auth.walletAddress,
       timestamp: new Date().toISOString(),
+      agentBookVerified: agentVerification.verified,
     };
 
     let zeroGHash: string | null = null;
@@ -92,11 +99,17 @@ export async function POST(req: NextRequest) {
           post: { id: post.id, tag: tokenTag, coinAddress: addresses.vault, txHash },
           onchain: true,
           zeroG: !!zeroGHash,
+          agentBookVerified: agentVerification.verified,
         });
       } catch {}
     }
 
-    return NextResponse.json({ post: { id: post.id, tag: tokenTag }, onchain: false, zeroG: !!zeroGHash });
+    return NextResponse.json({
+      post: { id: post.id, tag: tokenTag },
+      onchain: false,
+      zeroG: !!zeroGHash,
+      agentBookVerified: agentVerification.verified,
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Post creation failed" },

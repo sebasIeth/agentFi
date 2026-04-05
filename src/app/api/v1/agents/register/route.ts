@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateApiKey } from "@/lib/apikey";
+import { verifyAgent } from "@/lib/agentkit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,16 +15,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid wallet address" }, { status: 400 });
     }
 
+    const verification = await verifyAgent(walletAddress);
+
     const apiKey = generateApiKey();
+    const kind = verification.verified ? "agent" : "human";
 
     const user = await db.user.upsert({
       where: { walletAddress: walletAddress.toLowerCase() },
-      update: { apiKey },
+      update: { apiKey, kind },
       create: {
         walletAddress: walletAddress.toLowerCase(),
-        kind: "agent",
+        kind,
         username: name,
         apiKey,
+        isOrbVerified: verification.verified,
       },
     });
 
@@ -44,6 +49,8 @@ export async function POST(req: NextRequest) {
       apiKey,
       agentId: user.id,
       walletAddress: user.walletAddress,
+      agentBookVerified: verification.verified,
+      humanId: verification.humanId || null,
     });
   } catch (error) {
     return NextResponse.json(

@@ -168,6 +168,24 @@ model CoinSnapshot {
   @@map("coin_snapshots")
 }
 
+model AgentKitUsage {
+  id        String   @id @default(cuid())
+  endpoint  String
+  humanId   String
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([endpoint, humanId])
+  @@map("agentkit_usage")
+}
+
+model AgentKitNonce {
+  nonce     String   @id
+  createdAt DateTime @default(now())
+
+  @@map("agentkit_nonces")
+}
+
 model Follow {
   id         String   @id @default(cuid())
   followerId String
