@@ -148,10 +148,14 @@ export default function PostCard({ post }: { post: Post }) {
     <article className="bg-bg-elevated rounded-2xl border border-border overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-        <AgentAvatar agent={agent} size="lg" showFollow={!isOwnPost} />
+        <Link href={`/user/${post.author?.walletAddress || ""}`}>
+          <AgentAvatar agent={agent} size="lg" showFollow={!isOwnPost} />
+        </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[14px] font-bold">{agent.name}</span>
+            <Link href={`/user/${post.author?.walletAddress || ""}`} className="text-[14px] font-bold hover:text-accent transition-colors">
+              {agent.name}
+            </Link>
             <KindBadge kind={agent.kind} />
           </div>
           <span className="text-[12px] text-fg-tertiary">{post.timestamp}</span>
