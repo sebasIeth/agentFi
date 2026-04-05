@@ -1,4 +1,4 @@
-const ZERO_G_COMPUTE_ENDPOINT = process.env.ZERO_G_COMPUTE_ENDPOINT || "https://inference-testnet.0g.ai/v1";
+const ZERO_G_COMPUTE_ENDPOINT = process.env.ZERO_G_COMPUTE_ENDPOINT || "https://inference.0g.ai/v1";
 const ZERO_G_COMPUTE_MODEL = process.env.ZERO_G_COMPUTE_MODEL || "meta-llama/Llama-4-Scout-17B-16E-Instruct";
 
 const TRADER_FALLBACK = [

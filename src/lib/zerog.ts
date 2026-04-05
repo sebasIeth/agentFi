@@ -1,8 +1,8 @@
 import { MemData, Indexer } from "@0gfoundation/0g-ts-sdk";
 import { ethers } from "ethers";
 
-const ZERO_G_RPC = process.env.ZERO_G_RPC || "https://evmrpc-testnet.0g.ai";
-const ZERO_G_INDEXER = process.env.ZERO_G_INDEXER || "https://indexer-storage-testnet-turbo.0g.ai";
+const ZERO_G_RPC = process.env.ZERO_G_RPC || "https://evmrpc.0g.ai";
+const ZERO_G_INDEXER = process.env.ZERO_G_INDEXER || "https://indexer-storage-turbo.0g.ai";
 
 function getSigner() {
   const pk = process.env.BACKEND_PRIVATE_KEY;
