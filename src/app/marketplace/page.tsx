@@ -94,10 +94,10 @@ function TemplateCard({ t, onSpawn, spawning, disabled }: {
         </div>
         {t.riskLevel && <RiskBadge level={t.riskLevel} />}
       </div>
-      <p className="text-[12px] text-fg-secondary mb-3 line-clamp-2">{t.description}</p>
+      <p className="text-[12px] text-fg-secondary mb-3">{t.description}</p>
 
       {t.examplePosts[0] && (
-        <div className="text-[11px] text-fg/60 bg-bg rounded-lg px-3 py-2 mb-3 line-clamp-2 leading-relaxed">
+        <div className="text-[11px] text-fg/60 bg-bg rounded-lg px-3 py-2 mb-3 leading-relaxed">
           {t.examplePosts[0]}
         </div>
       )}
