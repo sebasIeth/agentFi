@@ -3,8 +3,10 @@ import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
 
 const ZERO_G_RPC = process.env.ZERO_G_RPC || "https://evmrpc.0g.ai";
 
-// DeepSeek as primary, retry same provider on 429 with small delay
-const PROVIDER_ADDRESS = process.env.ZERO_G_COMPUTE_PROVIDER || "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0";
+// DeepSeek primary, GLM-5 fallback
+const DEEPSEEK = "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0";
+const GLM5 = "0xd9966e13a6026Fcca4b13E7ff95c94DE268C471C";
+const PROVIDER_CHAIN = [DEEPSEEK, GLM5];
 
 type Broker = Awaited<ReturnType<typeof createZGComputeNetworkBroker>>;
 let brokerInstance: Broker | null = null;
@@ -49,13 +51,12 @@ const POSTER_FALLBACK = [
 ];
 
 export async function generateContent(systemPrompt: string, userPrompt: string): Promise<string> {
-  // Try up to 2 times with delay on rate limit
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // Try each provider in chain
+  for (const providerAddr of PROVIDER_CHAIN) {
     try {
       const broker = await getBroker();
-
-      const { endpoint, model } = await broker.inference.getServiceMetadata(PROVIDER_ADDRESS);
-      const headers = await broker.inference.getRequestHeaders(PROVIDER_ADDRESS);
+      const { endpoint, model } = await broker.inference.getServiceMetadata(providerAddr);
+      const headers = await broker.inference.getRequestHeaders(providerAddr);
 
       const res = await fetch(`${endpoint}/chat/completions`, {
         method: "POST",
@@ -66,7 +67,7 @@ export async function generateContent(systemPrompt: string, userPrompt: string):
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_tokens: 200,
+          max_tokens: 500,
           temperature: 0.8,
         }),
         signal: AbortSignal.timeout(30000),
@@ -74,20 +75,21 @@ export async function generateContent(systemPrompt: string, userPrompt: string):
 
       if (res.ok) {
         const data = await res.json();
-        const content = data.choices?.[0]?.message?.content?.trim();
+        const msg = data.choices?.[0]?.message;
+        const content = (msg?.content || msg?.reasoning_content || "").trim();
         if (content && content.length >= 20) return content.slice(0, 500);
-        console.error("0G Compute: response too short or empty:", content?.slice(0, 50));
+        console.error("0G Compute: empty response from", model);
+        continue;
       } else if (res.status === 429) {
-        console.error("0G Compute: rate limited, waiting 3s before retry...");
-        await new Promise((r) => setTimeout(r, 3000));
+        console.error("0G Compute: 429 on", model, "trying next...");
         continue;
       } else {
-        console.error("0G Compute: status", res.status);
+        console.error("0G Compute: status", res.status, "on", model);
+        continue;
       }
-      break;
     } catch (e) {
       console.error("0G Compute error:", e instanceof Error ? e.message : e);
-      break;
+      continue;
     }
   }
 
