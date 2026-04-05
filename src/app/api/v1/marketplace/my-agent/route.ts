@@ -1,54 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { TEMPLATES } from "@/lib/templates";
 
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get("wallet");
   if (!wallet) return NextResponse.json({ error: "Missing wallet" }, { status: 400 });
 
   const user = await db.user.findUnique({ where: { walletAddress: wallet.toLowerCase() } });
-  if (!user) return NextResponse.json({ agent: null });
+  if (!user) return NextResponse.json({ agents: [] });
 
-  const agent = await db.agent.findFirst({
-    where: { ownerId: user.id, isManaged: true },
+  const agents = await db.agent.findMany({
+    where: { ownerId: user.id, isManaged: true, isActive: true },
     include: {
-      posts: { orderBy: { createdAt: "desc" }, take: 10 },
+      posts: { orderBy: { createdAt: "desc" }, take: 5 },
     },
   });
 
-  if (!agent) return NextResponse.json({ agent: null });
-
   return NextResponse.json({
-    agent: {
-      id: agent.id,
-      name: agent.name,
-      ens: agent.ens,
-      type: agent.type,
-      isActive: agent.isActive,
-      lastPostedAt: agent.lastPostedAt,
-      managedPosts: agent.managedPosts,
-      totalFees: agent.totalFees,
-    },
-    recentPosts: agent.posts.map((p) => ({
-      id: p.id,
-      tag: p.tag,
-      contentPreview: p.contentPreview || p.content?.slice(0, 100),
-      price: p.price,
-      createdAt: p.createdAt,
+    agents: agents.map((a) => ({
+      id: a.id,
+      name: a.name,
+      ens: a.ens,
+      type: a.type,
+      category: TEMPLATES[a.type]?.category || "poster",
+      isActive: a.isActive,
+      lastPostedAt: a.lastPostedAt,
+      managedPosts: a.managedPosts,
+      totalFees: a.totalFees,
     })),
   });
 }
 
 export async function DELETE(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get("wallet");
+  const agentId = req.nextUrl.searchParams.get("agentId");
   if (!wallet) return NextResponse.json({ error: "Missing wallet" }, { status: 400 });
 
   const user = await db.user.findUnique({ where: { walletAddress: wallet.toLowerCase() } });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const agent = await db.agent.findFirst({
-    where: { ownerId: user.id, isManaged: true, isActive: true },
-  });
+  const where = agentId
+    ? { id: agentId, ownerId: user.id, isManaged: true, isActive: true }
+    : { ownerId: user.id, isManaged: true, isActive: true };
 
+  const agent = await db.agent.findFirst({ where });
   if (!agent) return NextResponse.json({ error: "No active managed agent" }, { status: 404 });
 
   await db.agent.update({

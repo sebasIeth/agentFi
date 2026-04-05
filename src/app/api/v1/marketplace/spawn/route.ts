@@ -10,8 +10,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing walletAddress or templateType" }, { status: 400 });
     }
 
-    if (!TEMPLATES[templateType]) {
-      return NextResponse.json({ error: "Invalid template. Use: trader or poster" }, { status: 400 });
+    const template = TEMPLATES[templateType];
+    if (!template) {
+      return NextResponse.json({ error: "Invalid template type" }, { status: 400 });
     }
 
     const humanUser = await db.user.upsert({
@@ -20,19 +21,18 @@ export async function POST(req: NextRequest) {
       create: { walletAddress: walletAddress.toLowerCase(), kind: "human" },
     });
 
-    const existing = await db.agent.findFirst({
+    // Max 5 agents per user
+    const count = await db.agent.count({
       where: { ownerId: humanUser.id, isManaged: true, isActive: true },
     });
-
-    if (existing) {
-      return NextResponse.json({ error: "You already have a managed agent. Only 1 per user." }, { status: 409 });
+    if (count >= 5) {
+      return NextResponse.json({ error: "Max 5 active agents per user" }, { status: 409 });
     }
 
-    const template = TEMPLATES[templateType];
     const shortId = Math.random().toString(36).slice(2, 8);
-    const ensName = `${templateType}-${shortId}.agentfi.eth`;
+    const ensName = `${templateType.replace("_", "-")}-${shortId}.agentfi.eth`;
 
-    // Create a separate User for the agent to post as (kind: "agent")
+    // Create agent User (kind: "agent")
     const agentWallet = `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(20))).toString("hex")}`;
     const agentUser = await db.user.create({
       data: {
@@ -42,14 +42,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // ownerId = human (for my-agent lookup), agent posts as agentUser via agentUser wallet stored in ens
     const agent = await db.agent.create({
       data: {
         ownerId: humanUser.id,
         name: `${template.displayName} #${shortId}`,
         ens: ensName,
         type: templateType,
-        avatarUrl: agentUser.walletAddress, // store agent wallet here for cron to use
+        avatarUrl: agentUser.walletAddress, // agent wallet for posting
         isManaged: true,
         isActive: true,
       },
@@ -61,6 +60,11 @@ export async function POST(req: NextRequest) {
         name: agent.name,
         ens: agent.ens,
         type: agent.type,
+        category: template.category,
+        isActive: true,
+        lastPostedAt: null,
+        managedPosts: 0,
+        totalFees: 0,
       },
       firstPostIn: "Next cron cycle (~3 min)",
     });

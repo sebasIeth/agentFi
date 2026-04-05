@@ -5,9 +5,12 @@ import { db } from "@/lib/db";
 export async function GET() {
   const templates = Object.values(TEMPLATES).map((t) => ({
     type: t.type,
+    category: t.category,
     displayName: t.displayName,
+    emoji: t.emoji,
     description: t.description,
     intervalMin: t.intervalMin,
+    riskLevel: t.riskLevel || null,
     examplePosts: t.examplePosts,
   }));
 

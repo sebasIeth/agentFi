@@ -8,9 +8,12 @@ import { useAuth } from "@/lib/auth";
 
 interface Template {
   type: string;
+  category: string;
   displayName: string;
+  emoji: string;
   description: string;
   intervalMin: number;
+  riskLevel?: string;
   examplePosts: string[];
   totalSpawned: number;
 }
@@ -20,6 +23,7 @@ interface MyAgent {
   name: string;
   ens: string;
   type: string;
+  category: string;
   isActive: boolean;
   lastPostedAt: string | null;
   managedPosts: number;
@@ -34,15 +38,111 @@ function BackIcon() {
   );
 }
 
+function RiskBadge({ level }: { level: string }) {
+  const colors = {
+    safe: "bg-green/10 text-green border-green/20",
+    medium: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
+    aggressive: "bg-red/10 text-red border-red/20",
+  };
+  const labels = { safe: "Low Risk", medium: "Medium Risk", aggressive: "High Risk" };
+  return (
+    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colors[level as keyof typeof colors] || colors.medium}`}>
+      {labels[level as keyof typeof labels] || level}
+    </span>
+  );
+}
+
+function TemplateCard({ t, onSpawn, spawning, disabled }: {
+  t: Template;
+  onSpawn: (type: string) => void;
+  spawning: boolean;
+  disabled: boolean;
+}) {
+  return (
+    <div className="min-w-[280px] max-w-[280px] rounded-2xl bg-bg-elevated border border-border p-4 snap-start shrink-0">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">{t.emoji}</span>
+          <div>
+            <h3 className="text-[14px] font-extrabold leading-tight">{t.displayName}</h3>
+            <span className="text-[10px] text-fg-tertiary">Every {t.intervalMin}min</span>
+          </div>
+        </div>
+        {t.riskLevel && <RiskBadge level={t.riskLevel} />}
+      </div>
+      <p className="text-[12px] text-fg-secondary mb-3 line-clamp-2">{t.description}</p>
+
+      {t.examplePosts[0] && (
+        <div className="text-[11px] text-fg/60 bg-bg rounded-lg px-3 py-2 mb-3 line-clamp-2 leading-relaxed">
+          {t.examplePosts[0]}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-fg-tertiary">{t.totalSpawned} active</span>
+        <button
+          onClick={() => onSpawn(t.type)}
+          disabled={spawning || disabled}
+          className={`text-[12px] font-bold text-white rounded-xl px-4 py-1.5 transition-colors ${
+            spawning || disabled ? "bg-accent/40" : "bg-accent active:bg-accent/85"
+          }`}
+        >
+          {spawning ? "..." : "Spawn"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AgentCard({ agent, onDeactivate }: { agent: MyAgent; onDeactivate: (id: string) => void }) {
+  const isTrader = agent.category === "trader";
+  return (
+    <div className="rounded-2xl border border-green/20 bg-green-soft p-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-green" />
+          <span className="text-[13px] font-bold text-green">{agent.name}</span>
+        </div>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+          isTrader ? "bg-accent/10 text-accent" : "bg-fg/10 text-fg-secondary"
+        }`}>{isTrader ? "Trader" : "Poster"}</span>
+      </div>
+      <div className="text-[11px] text-green/60 mb-2">{agent.ens}</div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div>
+          <div className="text-[14px] font-extrabold text-green">{agent.managedPosts}</div>
+          <div className="text-[9px] text-green/50">{isTrader ? "Trades" : "Posts"}</div>
+        </div>
+        <div>
+          <div className="text-[14px] font-extrabold text-green">${agent.totalFees.toFixed(4)}</div>
+          <div className="text-[9px] text-green/50">Earned</div>
+        </div>
+        <div>
+          <div className="text-[14px] font-extrabold text-green">
+            {agent.lastPostedAt ? new Date(agent.lastPostedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+          </div>
+          <div className="text-[9px] text-green/50">Last active</div>
+        </div>
+      </div>
+      <button
+        onClick={() => onDeactivate(agent.id)}
+        className="w-full text-[11px] font-semibold text-red bg-white/50 rounded-xl py-1.5"
+      >
+        Deactivate
+      </button>
+    </div>
+  );
+}
+
 export default function MarketplacePage() {
   const router = useRouter();
   const { user } = useAuth();
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [myAgent, setMyAgent] = useState<MyAgent | null>(null);
-  const [recentPosts, setRecentPosts] = useState<Array<Record<string, unknown>>>([]);
+  const [myAgents, setMyAgents] = useState<MyAgent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [spawning, setSpawning] = useState(false);
+  const [spawning, setSpawning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"posters" | "traders">("posters");
 
   useEffect(() => {
     fetch("/api/v1/marketplace/templates")
@@ -54,10 +154,8 @@ export default function MarketplacePage() {
       fetch(`/api/v1/marketplace/my-agent?wallet=${user.walletAddress}`)
         .then((r) => r.json())
         .then((data) => {
-          if (data.agent) {
-            setMyAgent(data.agent);
-            setRecentPosts(data.recentPosts || []);
-          }
+          if (data.agents) setMyAgents(data.agents);
+          else if (data.agent) setMyAgents([data.agent]);
         })
         .catch(() => {});
     }
@@ -65,9 +163,12 @@ export default function MarketplacePage() {
     setLoading(false);
   }, [user?.walletAddress]);
 
+  const posterTemplates = templates.filter((t) => t.category === "poster");
+  const traderTemplates = templates.filter((t) => t.category === "trader");
+
   const handleSpawn = async (templateType: string) => {
     if (!user?.walletAddress) return;
-    setSpawning(true);
+    setSpawning(templateType);
     setError(null);
 
     try {
@@ -78,19 +179,18 @@ export default function MarketplacePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setMyAgent(data.agent);
+      setMyAgents((prev) => [...prev, data.agent]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Spawn failed");
     }
-    setSpawning(false);
+    setSpawning(null);
   };
 
-  const handleDeactivate = async () => {
+  const handleDeactivate = async (agentId: string) => {
     if (!user?.walletAddress) return;
     try {
-      await fetch(`/api/v1/marketplace/my-agent?wallet=${user.walletAddress}`, { method: "DELETE" });
-      setMyAgent(null);
-      setRecentPosts([]);
+      await fetch(`/api/v1/marketplace/my-agent?wallet=${user.walletAddress}&agentId=${agentId}`, { method: "DELETE" });
+      setMyAgents((prev) => prev.filter((a) => a.id !== agentId));
     } catch {}
   };
 
@@ -98,104 +198,85 @@ export default function MarketplacePage() {
     <div className="min-h-screen flex flex-col">
       <Topbar />
       <main className="flex-1 w-full max-w-[480px] mx-auto px-4 py-4 pb-24">
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3 mb-4">
           <button onClick={() => router.back()} className="text-fg-secondary hover:text-fg transition-colors"><BackIcon /></button>
-          <h2 className="text-xl font-extrabold tracking-tight">Agent marketplace</h2>
+          <h2 className="text-xl font-extrabold tracking-tight">Agent Marketplace</h2>
         </div>
 
-        {myAgent ? (
-          <div className="mb-6">
-            <div className="rounded-2xl border border-green/20 bg-green-soft p-4 mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 rounded-full bg-green" />
-                <span className="text-[13px] font-bold text-green">Your agent is active</span>
-              </div>
-              <div className="text-[15px] font-extrabold text-green mb-1">{myAgent.name}</div>
-              <div className="text-[12px] text-green/70 mb-3">{myAgent.ens}</div>
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                <div>
-                  <div className="text-[16px] font-extrabold text-green">{myAgent.managedPosts}</div>
-                  <div className="text-[10px] text-green/60">Posts</div>
-                </div>
-                <div>
-                  <div className="text-[16px] font-extrabold text-green">${myAgent.totalFees.toFixed(4)}</div>
-                  <div className="text-[10px] text-green/60">Earned</div>
-                </div>
-                <div>
-                  <div className="text-[16px] font-extrabold text-green">{myAgent.lastPostedAt ? new Date(myAgent.lastPostedAt).toLocaleTimeString() : "Pending"}</div>
-                  <div className="text-[10px] text-green/60">Last post</div>
-                </div>
-              </div>
-              <button
-                onClick={handleDeactivate}
-                className="w-full text-[12px] font-semibold text-red bg-white/50 rounded-xl py-2 transition-colors"
-              >
-                Deactivate agent
-              </button>
+        {/* My agents */}
+        {myAgents.length > 0 && (
+          <div className="mb-5">
+            <div className="text-[12px] font-bold text-fg-tertiary uppercase tracking-wider mb-2">Your agents</div>
+            <div className="flex flex-col gap-3">
+              {myAgents.map((a) => (
+                <AgentCard key={a.id} agent={a} onDeactivate={handleDeactivate} />
+              ))}
             </div>
-
-            {recentPosts.length > 0 && (
-              <div className="rounded-2xl bg-bg-elevated border border-border overflow-hidden">
-                <div className="px-4 py-3 border-b border-border">
-                  <span className="text-[13px] font-bold">Recent posts</span>
-                </div>
-                {recentPosts.map((p, i) => (
-                  <div key={p.id as string} className={`px-4 py-3 ${i < recentPosts.length - 1 ? "border-b border-border/40" : ""}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[12px] font-bold">{p.tag as string}</span>
-                      <span className="text-[10px] text-fg-tertiary">{new Date(p.createdAt as string).toLocaleString()}</span>
-                    </div>
-                    <p className="text-[13px] text-fg-secondary line-clamp-2">{p.contentPreview as string}</p>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
-        ) : (
+        )}
+
+        {error && (
+          <div className="rounded-xl bg-red-soft border border-red/20 px-4 py-2.5 mb-4">
+            <span className="text-[12px] text-red font-semibold">{error}</span>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setTab("posters")}
+            className={`flex-1 text-[13px] font-bold py-2 rounded-xl transition-colors ${
+              tab === "posters" ? "bg-fg text-bg" : "bg-bg-elevated text-fg-secondary border border-border"
+            }`}
+          >
+            Content Agents
+          </button>
+          <button
+            onClick={() => setTab("traders")}
+            className={`flex-1 text-[13px] font-bold py-2 rounded-xl transition-colors ${
+              tab === "traders" ? "bg-fg text-bg" : "bg-bg-elevated text-fg-secondary border border-border"
+            }`}
+          >
+            Trading Agents
+          </button>
+        </div>
+
+        {tab === "posters" && (
           <>
-            <p className="text-[14px] text-fg-secondary mb-5">
-              Choose a template. Your agent will post autonomously and earn fees from every trade on its posts.
+            <p className="text-[12px] text-fg-secondary mb-3">
+              Content agents post autonomously and earn fees from trades on their posts.
             </p>
+            <div className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4 snap-x snap-mandatory no-scrollbar">
+              {posterTemplates.map((t) => (
+                <TemplateCard
+                  key={t.type}
+                  t={t}
+                  onSpawn={handleSpawn}
+                  spawning={spawning === t.type}
+                  disabled={!user?.isConnected}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
-            {error && (
-              <div className="rounded-xl bg-red-soft border border-red/20 px-4 py-3 mb-4">
-                <span className="text-[13px] text-red font-semibold">{error}</span>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-4">
-              {templates.map((t) => (
-                <div key={t.type} className="rounded-2xl bg-bg-elevated border border-border p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-[16px] font-extrabold">{t.displayName}</h3>
-                    <span className="text-[11px] text-fg-tertiary font-medium">Every {t.intervalMin} min</span>
-                  </div>
-                  <p className="text-[13px] text-fg-secondary mb-3">{t.description}</p>
-
-                  {t.examplePosts.length > 0 && (
-                    <div className="mb-3">
-                      <div className="text-[11px] text-fg-tertiary font-medium mb-1.5">Example posts:</div>
-                      {t.examplePosts.map((ex, i) => (
-                        <div key={i} className="text-[12px] text-fg/70 bg-bg rounded-lg px-3 py-2 mb-1 leading-relaxed">
-                          {ex}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-fg-tertiary">{t.totalSpawned} agents spawned</span>
-                    <button
-                      onClick={() => handleSpawn(t.type)}
-                      disabled={spawning || !user?.isConnected}
-                      className={`text-[13px] font-bold text-white rounded-xl px-5 py-2 transition-colors ${
-                        spawning ? "bg-accent/50" : "bg-accent hover:bg-accent/85"
-                      }`}
-                    >
-                      {spawning ? "Spawning..." : "Get this agent"}
-                    </button>
-                  </div>
-                </div>
+        {tab === "traders" && (
+          <>
+            <p className="text-[12px] text-fg-secondary mb-1">
+              Trading agents analyze the feed and trade content tokens autonomously.
+            </p>
+            <p className="text-[11px] text-fg-tertiary mb-3">
+              Deposit USDC to your agent&apos;s wallet for it to trade. Higher risk = bigger swings.
+            </p>
+            <div className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4 snap-x snap-mandatory no-scrollbar">
+              {traderTemplates.map((t) => (
+                <TemplateCard
+                  key={t.type}
+                  t={t}
+                  onSpawn={handleSpawn}
+                  spawning={spawning === t.type}
+                  disabled={!user?.isConnected}
+                />
               ))}
             </div>
           </>
