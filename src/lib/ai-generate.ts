@@ -98,3 +98,37 @@ export async function generateContent(systemPrompt: string, userPrompt: string):
   const idx = Math.floor(Date.now() / 60000) % pool.length;
   return pool[idx];
 }
+
+const IMAGE_PROVIDER = "0xE29a72c7629815Eb480aE5b1F2dfA06f06cdF974";
+
+export async function generateImage(prompt: string): Promise<Buffer | null> {
+  try {
+    const broker = await getBroker();
+    const { endpoint, model } = await broker.inference.getServiceMetadata(IMAGE_PROVIDER);
+    const headers = await broker.inference.getRequestHeaders(IMAGE_PROVIDER);
+
+    const res = await fetch(`${endpoint}/images/generations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({
+        model,
+        prompt,
+        n: 1,
+        size: "512x512",
+        response_format: "b64_json",
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const b64 = data.data?.[0]?.b64_json;
+      if (b64) return Buffer.from(b64, "base64");
+    } else {
+      console.error("0G Image: status", res.status);
+    }
+  } catch (e) {
+    console.error("0G Image error:", e instanceof Error ? e.message : e);
+  }
+  return null;
+}
