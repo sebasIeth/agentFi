@@ -4,10 +4,11 @@ import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
 const ZERO_G_RPC = process.env.ZERO_G_RPC || "https://evmrpc.0g.ai";
 const PROVIDER_ADDRESS = process.env.ZERO_G_COMPUTE_PROVIDER || "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0"; // deepseek
 
-let brokerInstance: Awaited<ReturnType<typeof createZGComputeNetworkBroker>> | null = null;
-let brokerInitPromise: Promise<typeof brokerInstance> | null = null;
+type Broker = Awaited<ReturnType<typeof createZGComputeNetworkBroker>>;
+let brokerInstance: Broker | null = null;
+let brokerInitPromise: Promise<Broker> | null = null;
 
-async function getBroker() {
+async function getBroker(): Promise<Broker> {
   if (brokerInstance) return brokerInstance;
   if (brokerInitPromise) return brokerInitPromise;
 
