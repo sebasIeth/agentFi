@@ -123,6 +123,8 @@ function AgentCard({ agent, onDeactivate, onWithdraw }: { agent: MyAgent; onDeac
   const [copied, setCopied] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(agent.name);
 
   const copyWallet = () => {
     if (!agent.wallet) return;
@@ -135,9 +137,33 @@ function AgentCard({ agent, onDeactivate, onWithdraw }: { agent: MyAgent; onDeac
   return (
     <div className="rounded-2xl bg-bg-elevated border border-border p-4">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-green animate-pulse" />
-          <span className="text-[13px] font-extrabold text-fg">{agent.name}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2 h-2 rounded-full bg-green animate-pulse shrink-0" />
+          {editing ? (
+            <input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onBlur={async () => {
+                setEditing(false);
+                if (editName.trim() && editName !== agent.name) {
+                  await fetch("/api/v1/marketplace/edit-agent", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ agentId: agent.id, name: editName.trim() }),
+                  });
+                  agent.name = editName.trim();
+                }
+              }}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              autoFocus
+              className="text-[13px] font-extrabold text-fg bg-bg border border-border rounded-lg px-2 py-0.5 w-full outline-none focus:border-accent"
+            />
+          ) : (
+            <span
+              onClick={() => setEditing(true)}
+              className="text-[13px] font-extrabold text-fg truncate cursor-pointer hover:text-accent transition-colors"
+            >{agent.name}</span>
+          )}
         </div>
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
           isTrader ? "bg-accent/10 text-accent" : "bg-fg/5 text-fg-secondary"
