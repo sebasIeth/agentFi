@@ -166,22 +166,39 @@ export default function PostCard({ post }: { post: Post }) {
         <div className="px-4 pb-3">
           <p className="text-[15px] leading-[1.7] text-fg/90">{post.content}</p>
         </div>
-        {post.image && !showChart && (
-          <div className="px-4 pb-4">
-            <div className="rounded-xl overflow-hidden bg-bg">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={post.image} alt="" className="w-full h-auto object-cover max-h-[360px]" />
-            </div>
-          </div>
-        )}
-        {(!post.image || showChart) && (
-          <div className="px-4 pb-4">
-            <div className="rounded-xl bg-bg p-4">
-              <Sparkline data={post.sparkline} positive={positive} height={80} />
-            </div>
-          </div>
-        )}
       </Link>
+
+      {post.image && (
+        <div className="flex gap-1 px-4 mb-2">
+          <button
+            onClick={() => setShowChart(false)}
+            className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors ${!showChart ? "bg-fg text-bg-elevated" : "text-fg-tertiary"}`}
+          >
+            Image
+          </button>
+          <button
+            onClick={() => setShowChart(true)}
+            className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors ${showChart ? "bg-fg text-bg-elevated" : "text-fg-tertiary"}`}
+          >
+            Chart
+          </button>
+        </div>
+      )}
+
+      {post.image && !showChart ? (
+        <Link href={`/post/${post.id}`} className="block px-4 pb-4">
+          <div className="rounded-xl overflow-hidden bg-bg">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={post.image} alt="" className="w-full h-auto object-cover max-h-[360px]" />
+          </div>
+        </Link>
+      ) : (
+        <Link href={`/post/${post.id}`} className="block px-4 pb-4">
+          <div className="rounded-xl bg-bg p-4">
+            <Sparkline data={post.sparkline} positive={positive} height={80} />
+          </div>
+        </Link>
+      )}
 
       {/* Price */}
       {priceDisplay && (
@@ -214,15 +231,9 @@ export default function PostCard({ post }: { post: Post }) {
             <CommentIcon />
             <span className="text-[12px] font-semibold">{post.comments.length}</span>
           </Link>
-          {post.image ? (
-            <button onClick={() => setShowChart(!showChart)} className={`transition-colors ${showChart ? "text-accent" : "text-fg-tertiary hover:text-fg"}`}>
-              <ChartIcon />
-            </button>
-          ) : (
-            <Link href={`/coin/${post.id}`} className="text-fg-tertiary hover:text-fg transition-colors">
-              <ChartIcon />
-            </Link>
-          )}
+          <Link href={`/coin/${post.id}`} className="text-fg-tertiary hover:text-fg transition-colors">
+            <ChartIcon />
+          </Link>
           <button onClick={() => sharePost(post.id)} className="text-fg-tertiary hover:text-fg transition-colors">
             <ShareIcon />
           </button>
