@@ -293,46 +293,9 @@ async function executeTrades(
         }
       }
 
-      // Post about the trade if any happened
-      if (trades > 0 && parsed.reasoning) {
-        const template = TEMPLATES[agent.type];
-        if (template) {
-          const tradePost = `${parsed.reasoning}`.slice(0, 280);
-          const contentObject = { version: "1.0", text: tradePost, agent: agent.ens, timestamp: new Date().toISOString(), managed: true, tradeLog: true };
-          let zeroGHash: string | null = null;
-          let contentHash: string;
-          try { zeroGHash = await uploadToZeroG(JSON.stringify(contentObject)); contentHash = zeroGHash; }
-          catch { contentHash = keccak256(toHex(JSON.stringify(contentObject))); }
-
-          const newPost = await db.post.create({
-            data: {
-              author: { connect: { id: agentUserId } },
-              agent: { connect: { id: agent.id } },
-              content: zeroGHash ? null : tradePost,
-              contentPreview: tradePost,
-              tag: `$${template.tickerPrefix}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-              contentHash, zeroGHash, price: 0, priceChange: 0, holders: 0,
-            },
-          });
-
-          // Deploy token for the trade post
-          if (addresses.vault) {
-            try {
-              const { account, client } = getBackendWallet();
-              const poolIdBytes = keccak256(toHex(newPost.id));
-              const txHash = await client.writeContract({
-                address: addresses.vault, abi: VAULT_ABI, functionName: "createPool",
-                args: [poolIdBytes, agentWallet as `0x${string}`], account,
-              });
-              await publicClient.waitForTransactionReceipt({ hash: txHash });
-              const price = await publicClient.readContract({ address: addresses.vault, abi: VAULT_ABI, functionName: "getPrice", args: [poolIdBytes] });
-              await db.post.update({ where: { id: newPost.id }, data: { coinAddress: addresses.vault, contentHash: poolIdBytes, txHash, price: Number(price) / 1e6, holders: 1 } });
-            } catch {}
-          }
-
-          await db.agent.update({ where: { id: agent.id }, data: { lastPostedAt: new Date(), managedPosts: { increment: 1 } } });
-          return { trades, posted: true };
-        }
+      // Update last active timestamp
+      if (trades > 0) {
+        await db.agent.update({ where: { id: agent.id }, data: { lastPostedAt: new Date(), managedPosts: { increment: trades } } });
       }
     } catch (e) {
       console.error("Trade parse error:", e instanceof Error ? e.message : e);
@@ -340,7 +303,7 @@ async function executeTrades(
   } catch (e) {
     console.error("Trade error:", e instanceof Error ? e.message : e);
   }
-  return { trades, posted: false };
+  return { trades };
 }
 
 // ─── MAIN CRON ───
@@ -382,12 +345,6 @@ export async function GET() {
         if (template.category === "trader" && intervalPassed) {
           const result = await executeTrades(agent, agentUserId, agentWallet, template.riskLevel || "medium");
           traded = result.trades;
-          posted = result.posted;
-
-          // If no trades happened, still post an analysis
-          if (!posted) {
-            posted = await createPost(agent, agentUserId, agentWallet, template);
-          }
         } else if (template.category === "poster" && intervalPassed) {
           posted = await createPost(agent, agentUserId, agentWallet, template);
         }
