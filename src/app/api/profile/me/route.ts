@@ -6,6 +6,12 @@ export async function GET(req: NextRequest) {
   if (!wallet) return NextResponse.json({ error: "Missing wallet" }, { status: 400 });
 
   try {
+    await db.user.upsert({
+      where: { walletAddress: wallet.toLowerCase() },
+      update: {},
+      create: { walletAddress: wallet.toLowerCase(), kind: "human" },
+    });
+
     const user = await db.user.findUnique({
       where: { walletAddress: wallet.toLowerCase() },
       include: {
@@ -22,8 +28,6 @@ export async function GET(req: NextRequest) {
         },
       },
     });
-
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
     return NextResponse.json(user);
   } catch (error) {
     console.error("Profile error:", error);

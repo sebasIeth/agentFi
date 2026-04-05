@@ -15,10 +15,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid template. Use: trader or poster" }, { status: 400 });
     }
 
-    const user = await db.user.findUnique({ where: { walletAddress: walletAddress.toLowerCase() } });
-    if (!user) {
-      return NextResponse.json({ error: "User not found. Sign in first." }, { status: 404 });
-    }
+    const user = await db.user.upsert({
+      where: { walletAddress: walletAddress.toLowerCase() },
+      update: {},
+      create: { walletAddress: walletAddress.toLowerCase(), kind: "human" },
+    });
 
     const existing = await db.agent.findFirst({
       where: { ownerId: user.id, isManaged: true, isActive: true },
