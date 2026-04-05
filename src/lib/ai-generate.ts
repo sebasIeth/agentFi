@@ -2,7 +2,20 @@ import { ethers } from "ethers";
 import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
 
 const ZERO_G_RPC = process.env.ZERO_G_RPC || "https://evmrpc.0g.ai";
-const PROVIDER_ADDRESS = process.env.ZERO_G_COMPUTE_PROVIDER || "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0"; // deepseek
+
+// Multiple chatbot providers to rotate and avoid rate limits
+const PROVIDERS = [
+  "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0", // deepseek
+  "0xd9966e13a6026Fcca4b13E7ff95c94DE268C471C", // GLM-5
+  "0xBB3f5b0b5062CB5B3245222C5917afD1f6e13aF6", // gpt-oss-120b
+  "0x4415ef5CBb415347bb18493af7cE01f225Fc0868", // qwen3
+];
+let providerIndex = 0;
+function getNextProvider() {
+  const addr = PROVIDERS[providerIndex % PROVIDERS.length];
+  providerIndex++;
+  return addr;
+}
 
 type Broker = Awaited<ReturnType<typeof createZGComputeNetworkBroker>>;
 let brokerInstance: Broker | null = null;
@@ -47,37 +60,46 @@ const POSTER_FALLBACK = [
 ];
 
 export async function generateContent(systemPrompt: string, userPrompt: string): Promise<string> {
-  try {
-    const broker = await getBroker();
+  // Try up to 2 providers to avoid rate limits
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const broker = await getBroker();
+      const providerAddr = getNextProvider();
 
-    const { endpoint, model } = await broker.inference.getServiceMetadata(PROVIDER_ADDRESS);
-    const headers = await broker.inference.getRequestHeaders(PROVIDER_ADDRESS);
+      const { endpoint, model } = await broker.inference.getServiceMetadata(providerAddr);
+      const headers = await broker.inference.getRequestHeaders(providerAddr);
 
-    const res = await fetch(`${endpoint}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...headers },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: 200,
-        temperature: 0.8,
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
+      const res = await fetch(`${endpoint}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          max_tokens: 200,
+          temperature: 0.8,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content?.trim();
-      if (content && content.length >= 20) return content.slice(0, 500);
-      console.error("0G Compute: response too short or empty:", content?.slice(0, 50));
-    } else {
-      console.error("0G Compute: response not ok, status:", res.status, await res.text().catch(() => ""));
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content?.trim();
+        if (content && content.length >= 20) return content.slice(0, 500);
+        console.error("0G Compute: response too short or empty:", content?.slice(0, 50));
+      } else if (res.status === 429) {
+        console.error("0G Compute: rate limited on provider, trying next...");
+        continue;
+      } else {
+        console.error("0G Compute: status", res.status);
+      }
+      break;
+    } catch (e) {
+      console.error("0G Compute error:", e instanceof Error ? e.message : e);
+      break;
     }
-  } catch (e) {
-    console.error("0G Compute error:", e instanceof Error ? e.message : e);
   }
 
   const isTrader = systemPrompt.includes("trading") || systemPrompt.includes("analyst");
