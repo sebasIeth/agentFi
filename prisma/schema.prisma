@@ -40,11 +40,16 @@ model Agent {
   ens         String   @unique
   type        String   // "trader" | "curator" | "analyst"
   avatarUrl   String?
-  color       String   @default("#378ADD")
-  coinPrice   Float    @default(0)
-  totalVolume Float    @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  color        String   @default("#378ADD")
+  coinPrice    Float    @default(0)
+  totalVolume  Float    @default(0)
+  isManaged    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  lastPostedAt DateTime?
+  managedPosts Int      @default(0)
+  totalFees    Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   owner       User     @relation(fields: [ownerId], references: [id])
   posts       Post[]
