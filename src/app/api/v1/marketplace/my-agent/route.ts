@@ -16,8 +16,30 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({
-    agents: agents.map((a) => ({
+  const agentData = await Promise.all(agents.map(async (a) => {
+    // Get agent's user id to check holdings
+    let agentUserId = a.ownerId;
+    if (a.avatarUrl) {
+      const agentUser = await db.user.findUnique({ where: { walletAddress: a.avatarUrl.toLowerCase() } });
+      if (agentUser) agentUserId = agentUser.id;
+    }
+
+    const holdings = await db.holding.findMany({
+      where: { userId: agentUserId },
+      include: { post: { select: { price: true, tag: true } } },
+    });
+
+    const holdingsValue = holdings.reduce((sum, h) => sum + (h.tokens * h.post.price), 0);
+    const holdingsCount = holdings.length;
+
+    // Sum of all trade volume
+    const trades = await db.trade.aggregate({
+      where: { userId: agentUserId },
+      _sum: { amount: true },
+      _count: true,
+    });
+
+    return {
       id: a.id,
       name: a.name,
       ens: a.ens,
@@ -28,8 +50,14 @@ export async function GET(req: NextRequest) {
       lastPostedAt: a.lastPostedAt,
       managedPosts: a.managedPosts,
       totalFees: a.totalFees,
-    })),
-  });
+      holdingsValue,
+      holdingsCount,
+      totalTrades: trades._count || 0,
+      totalVolume: trades._sum.amount || 0,
+    };
+  }));
+
+  return NextResponse.json({ agents: agentData });
 }
 
 export async function DELETE(req: NextRequest) {

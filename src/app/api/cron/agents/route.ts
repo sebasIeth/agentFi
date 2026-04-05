@@ -197,7 +197,7 @@ async function executeTrades(
       take: 10,
     });
 
-    if (trendingPosts.length === 0) return { trades, posted: false };
+    if (trendingPosts.length === 0) return { trades };
 
     // Check agent's current holdings
     const holdings = await db.holding.findMany({ where: { userId: agentUserId } });
@@ -223,13 +223,16 @@ async function executeTrades(
     // Parse and execute
     try {
       const jsonMatch = tradeDecision.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return { trades, posted: false };
+      if (!jsonMatch) return { trades };
       const parsed = JSON.parse(jsonMatch[0]);
 
       const addresses = getContractAddresses();
-      if (!addresses.vault) return { trades, posted: false };
+      if (!addresses.vault) return { trades };
 
-      // Execute buys
+      const ERC20_APPROVE_ABI = [{ name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] }] as const;
+      const { account, client: walletClient } = getBackendWallet();
+
+      // Execute buys (on-chain via backend wallet)
       if (Array.isArray(parsed.buy)) {
         for (const buy of parsed.buy.slice(0, 2)) {
           if (typeof buy.index !== "number" || buy.index < 0 || buy.index >= trendingPosts.length) continue;
@@ -243,13 +246,27 @@ async function executeTrades(
             const tokensOut = await publicClient.readContract({
               address: addresses.vault, abi: VAULT_ABI, functionName: "getBuyQuote", args: [poolId, usdcParsed],
             });
+            const minTokens = (tokensOut as bigint) * BigInt(95) / BigInt(100);
 
-            // Record trade in DB (paper trade for now)
+            // 1. Approve USDC
+            const approveTx = await walletClient.writeContract({
+              address: addresses.usdc, abi: ERC20_APPROVE_ABI, functionName: "approve",
+              args: [addresses.vault, usdcParsed], account,
+            });
+            await publicClient.waitForTransactionReceipt({ hash: approveTx });
+
+            // 2. Buy on-chain
+            const buyTx = await walletClient.writeContract({
+              address: addresses.vault, abi: VAULT_ABI, functionName: "buy",
+              args: [poolId, usdcParsed, minTokens], account,
+            });
+            await publicClient.waitForTransactionReceipt({ hash: buyTx });
+
+            // 3. Record in DB
             await db.trade.create({
-              data: { userId: agentUserId, postId: post.id, type: "buy", amount: usdcAmount, tokens: Number(tokensOut) / 1e18 },
+              data: { userId: agentUserId, postId: post.id, type: "buy", amount: usdcAmount, tokens: Number(tokensOut) / 1e18, txHash: buyTx },
             });
 
-            // Update holding
             const existingHolding = await db.holding.findUnique({ where: { userId_postId: { userId: agentUserId, postId: post.id } } });
             if (existingHolding) {
               await db.holding.update({ where: { id: existingHolding.id }, data: { tokens: { increment: Number(tokensOut) / 1e18 } } });
@@ -258,13 +275,14 @@ async function executeTrades(
             }
 
             trades++;
+            console.log(`Agent ${agent.ens} bought ${post.tag} for $${usdcAmount} tx:${buyTx}`);
           } catch (e) {
             console.error("Trade buy error:", e instanceof Error ? e.message : e);
           }
         }
       }
 
-      // Execute sells
+      // Execute sells (on-chain via backend wallet)
       if (Array.isArray(parsed.sell)) {
         for (const sell of parsed.sell.slice(0, 2)) {
           if (typeof sell.index !== "number" || sell.index < 0 || sell.index >= trendingPosts.length) continue;
@@ -275,8 +293,17 @@ async function executeTrades(
           const sellTokens = Math.min(sell.tokens || holding.tokens, holding.tokens);
 
           try {
+            const poolId = (post.contentHash || keccak256(toHex(post.id))) as `0x${string}`;
+            const tokensParsed = BigInt(Math.round(sellTokens * 1e18));
+
+            const sellTx = await walletClient.writeContract({
+              address: addresses.vault, abi: VAULT_ABI, functionName: "sell",
+              args: [poolId, tokensParsed, BigInt(0)], account,
+            });
+            await publicClient.waitForTransactionReceipt({ hash: sellTx });
+
             await db.trade.create({
-              data: { userId: agentUserId, postId: post.id, type: "sell", amount: sellTokens * post.price, tokens: sellTokens },
+              data: { userId: agentUserId, postId: post.id, type: "sell", amount: sellTokens * post.price, tokens: sellTokens, txHash: sellTx },
             });
 
             const remaining = holding.tokens - sellTokens;
@@ -287,6 +314,7 @@ async function executeTrades(
             }
 
             trades++;
+            console.log(`Agent ${agent.ens} sold ${post.tag} ${sellTokens} tokens tx:${sellTx}`);
           } catch (e) {
             console.error("Trade sell error:", e instanceof Error ? e.message : e);
           }

@@ -29,6 +29,10 @@ interface MyAgent {
   lastPostedAt: string | null;
   managedPosts: number;
   totalFees: number;
+  holdingsValue: number;
+  holdingsCount: number;
+  totalTrades: number;
+  totalVolume: number;
 }
 
 function BackIcon() {
@@ -153,21 +157,46 @@ function AgentCard({ agent, onDeactivate }: { agent: MyAgent; onDeactivate: (id:
         </button>
       )}
 
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        <div>
-          <div className="text-[14px] font-extrabold text-fg">{agent.managedPosts}</div>
-          <div className="text-[9px] text-fg-tertiary">{isTrader ? "Trades" : "Posts"}</div>
-        </div>
-        <div>
-          <div className="text-[14px] font-extrabold text-fg">${agent.totalFees.toFixed(4)}</div>
-          <div className="text-[9px] text-fg-tertiary">Earned</div>
-        </div>
-        <div>
-          <div className="text-[14px] font-extrabold text-fg">
-            {agent.lastPostedAt ? new Date(agent.lastPostedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
-          </div>
-          <div className="text-[9px] text-fg-tertiary">Last active</div>
-        </div>
+      <div className={`grid ${isTrader ? "grid-cols-4" : "grid-cols-3"} gap-2 mb-3`}>
+        {isTrader ? (
+          <>
+            <div>
+              <div className="text-[14px] font-extrabold text-fg">{agent.totalTrades || 0}</div>
+              <div className="text-[9px] text-fg-tertiary">Trades</div>
+            </div>
+            <div>
+              <div className="text-[14px] font-extrabold text-fg">${(agent.holdingsValue || 0).toFixed(4)}</div>
+              <div className="text-[9px] text-fg-tertiary">Holdings</div>
+            </div>
+            <div>
+              <div className="text-[14px] font-extrabold text-fg">${(agent.totalVolume || 0).toFixed(4)}</div>
+              <div className="text-[9px] text-fg-tertiary">Volume</div>
+            </div>
+            <div>
+              <div className="text-[14px] font-extrabold text-fg">
+                {agent.lastPostedAt ? new Date(agent.lastPostedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+              </div>
+              <div className="text-[9px] text-fg-tertiary">Last trade</div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <div className="text-[14px] font-extrabold text-fg">{agent.managedPosts}</div>
+              <div className="text-[9px] text-fg-tertiary">Posts</div>
+            </div>
+            <div>
+              <div className="text-[14px] font-extrabold text-fg">${agent.totalFees.toFixed(4)}</div>
+              <div className="text-[9px] text-fg-tertiary">Earned</div>
+            </div>
+            <div>
+              <div className="text-[14px] font-extrabold text-fg">
+                {agent.lastPostedAt ? new Date(agent.lastPostedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+              </div>
+              <div className="text-[9px] text-fg-tertiary">Last post</div>
+            </div>
+          </>
+        )}
       </div>
       <button
         onClick={() => onDeactivate(agent.id)}
