@@ -231,10 +231,22 @@ async function executeTrades(
 
       const ERC20_APPROVE_ABI = [{ name: "approve", type: "function", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] }] as const;
 
-      // Relayer executes trades on behalf of agent (pays gas)
+      // Relayer executes trades, pulls USDC from agent wallet via transferFrom
       const { account, client: walletClient } = getBackendWallet();
+      const ERC20_TRANSFER_FROM_ABI = [{ name: "transferFrom", type: "function", stateMutability: "nonpayable", inputs: [{ name: "from", type: "address" }, { name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] }] as const;
+      const ERC20_BALANCE_ABI = [{ name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] }] as const;
 
-      // Execute buys (on-chain via backend wallet)
+      // Check agent's USDC balance
+      const agentUsdcBalance = await publicClient.readContract({
+        address: addresses.usdc, abi: ERC20_BALANCE_ABI, functionName: "balanceOf", args: [agentWallet as `0x${string}`],
+      }) as bigint;
+
+      if (agentUsdcBalance === BigInt(0)) {
+        console.log(`Agent ${agent.ens} has no USDC to trade`);
+        return { trades };
+      }
+
+      // Execute buys: pull USDC from agent → relayer, then relayer buys
       if (Array.isArray(parsed.buy)) {
         for (const buy of parsed.buy.slice(0, 2)) {
           if (typeof buy.index !== "number" || buy.index < 0 || buy.index >= trendingPosts.length) continue;
@@ -245,19 +257,28 @@ async function executeTrades(
             const poolId = (post.contentHash || keccak256(toHex(post.id))) as `0x${string}`;
             const usdcParsed = BigInt(Math.round(usdcAmount * 1e6));
 
+            if (usdcParsed > agentUsdcBalance) { console.log(`Agent ${agent.ens} insufficient USDC for trade`); continue; }
+
             const tokensOut = await publicClient.readContract({
               address: addresses.vault, abi: VAULT_ABI, functionName: "getBuyQuote", args: [poolId, usdcParsed],
             });
             const minTokens = (tokensOut as bigint) * BigInt(95) / BigInt(100);
 
-            // 1. Approve USDC
+            // 1. Pull USDC from agent to relayer
+            const pullTx = await walletClient.writeContract({
+              address: addresses.usdc, abi: ERC20_TRANSFER_FROM_ABI, functionName: "transferFrom",
+              args: [agentWallet as `0x${string}`, account.address, usdcParsed], account,
+            });
+            await publicClient.waitForTransactionReceipt({ hash: pullTx });
+
+            // 2. Relayer approves vault
             const approveTx = await walletClient.writeContract({
               address: addresses.usdc, abi: ERC20_APPROVE_ABI, functionName: "approve",
               args: [addresses.vault, usdcParsed], account,
             });
             await publicClient.waitForTransactionReceipt({ hash: approveTx });
 
-            // 2. Buy on-chain
+            // 3. Relayer buys
             const buyTx = await walletClient.writeContract({
               address: addresses.vault, abi: VAULT_ABI, functionName: "buy",
               args: [poolId, usdcParsed, minTokens], account,
