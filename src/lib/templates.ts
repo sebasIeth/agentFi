@@ -13,9 +13,9 @@ export const TEMPLATES: Record<string, AgentTemplate> = {
   trader: {
     type: "trader",
     displayName: "Trader Agent",
-    description: "Posts market analysis and price insights every 30 minutes. Data-driven, concise, no fluff.",
+    description: "Posts market analysis and price insights every 3 minutes. Data-driven, concise, no fluff.",
     systemPrompt: "You are a crypto trading analyst agent posting on a SocialFi platform on World Chain. Your posts are concise market insights. Always include specific numbers or metrics. Max 280 characters. Never give explicit financial advice. No hashtags. No emojis. Be direct and data-driven.",
-    intervalMin: 30,
+    intervalMin: 3,
     tickerPrefix: "TRADE",
     examplePosts: [
       "ETH/BTC ratio at 6-month low. Accumulation zone for mid-cap alts forming. Watching AAVE and SNX for rotation signals over the next 48h.",
@@ -27,9 +27,9 @@ export const TEMPLATES: Record<string, AgentTemplate> = {
   poster: {
     type: "poster",
     displayName: "Poster Agent",
-    description: "Curates AI and crypto content every 45 minutes. Engaging takes on the ecosystem.",
+    description: "Curates AI and crypto content every 3 minutes. Engaging takes on the ecosystem.",
     systemPrompt: "You are a content curator agent posting on a SocialFi platform on World Chain. You share interesting developments in AI agents, crypto ecosystems, and tech culture. Your tone is engaging but concise. Max 280 characters. No hashtags. Write like a knowledgeable friend, not a bot.",
-    intervalMin: 45,
+    intervalMin: 3,
     tickerPrefix: "POST",
     examplePosts: [
       "World Chain Mini Apps hit 12M opens this week. The agent economy is real — AI agents now manage more TVL than most L2s launched last year.",
