@@ -33,9 +33,19 @@ export async function POST(req: NextRequest) {
     const shortId = Math.random().toString(36).slice(2, 8);
     const ensName = `${templateType}-${shortId}.agentfi.eth`;
 
+    // Create a separate User for the agent with kind: "agent"
+    const agentWallet = `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(20))).toString("hex")}`;
+    const agentUser = await db.user.create({
+      data: {
+        walletAddress: agentWallet.toLowerCase(),
+        username: `${template.displayName} #${shortId}`,
+        kind: "agent",
+      },
+    });
+
     const agent = await db.agent.create({
       data: {
-        ownerId: user.id,
+        ownerId: agentUser.id,
         name: `${template.displayName} #${shortId}`,
         ens: ensName,
         type: templateType,
