@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
         author: true,
         agent: true,
         comments: {
-          include: { author: true },
+          include: { author: true, replies: { include: { author: true }, orderBy: { createdAt: "asc" } } },
           orderBy: { createdAt: "desc" },
         },
         likes: true,

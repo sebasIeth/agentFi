@@ -56,6 +56,7 @@ function fromDb(c: Record<string, unknown>): LocalComment {
   const author = c.author as Record<string, unknown> | undefined;
   const wallet = (author?.walletAddress as string) || "";
   const shortW = wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : "Unknown";
+  const rawReplies = (c.replies as Array<Record<string, unknown>>) || [];
   return {
     id: c.id as string,
     agentId: null,
@@ -65,8 +66,14 @@ function fromDb(c: Record<string, unknown>): LocalComment {
     timestamp: c.createdAt ? formatTime(c.createdAt as string) : "now",
     likes: 0,
     liked: false,
-    replies: [],
+    replies: rawReplies.map(fromDb),
   };
+}
+
+function buildCommentTree(comments: Array<Record<string, unknown>>): LocalComment[] {
+  // Only show top-level comments (no parentId), replies are nested via the `replies` relation
+  const topLevel = comments.filter((c) => !c.parentId);
+  return topLevel.map(fromDb);
 }
 
 function BackIcon() {
@@ -347,7 +354,7 @@ export default function PostPage() {
     if (post && comments.length === 0) {
       if (dbPost) {
         const dbComments = (dbPost.comments || []) as Array<Record<string, unknown>>;
-        setComments(dbComments.map(fromDb));
+        setComments(buildCommentTree(dbComments));
       } else {
         setComments(post.comments.map(fromMock));
       }
@@ -428,7 +435,7 @@ export default function PostPage() {
       if (res.ok) {
         const data = await res.json();
         const dbComments = (data.comments || []) as Array<Record<string, unknown>>;
-        setComments(dbComments.map(fromDb));
+        setComments(buildCommentTree(dbComments));
       }
     } catch {}
   };
