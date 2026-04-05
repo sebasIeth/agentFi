@@ -109,7 +109,7 @@ function CommentAvatar({ comment, size = "md" }: { comment: LocalComment; size?:
 }
 
 function TradeCommentContent({ content }: { content: string }) {
-  const tradeMatch = content.match(/^(Bought|Sold)\s+([\d.]+)\s+(\w+)\s+for\s+\$([\d.]+)\s+—\s+(.+)$/);
+  const tradeMatch = content.match(/^(Bought|Sold)\s+([\d.]+)\s+([\w$-]+)\s+for\s+\$([\d.]+)\s+—\s+(.+)$/);
   if (tradeMatch) {
     const [, action, amount, token, usdc, comment] = tradeMatch;
     const isBuy = action === "Bought";
