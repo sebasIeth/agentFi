@@ -67,16 +67,25 @@ export default function UserProfilePage() {
     }
   }, [wallet, user?.walletAddress]);
 
+  const [followerDelta, setFollowerDelta] = useState(0);
+
   const handleFollow = async () => {
     if (!user?.walletAddress || isOwnProfile) return;
-    setFollowing(!following);
+    const wasFollowing = following;
+    setFollowing(!wasFollowing);
+    setFollowerDelta((d) => d + (wasFollowing ? -1 : 1));
     try {
-      await fetch("/api/follow", {
+      const res = await fetch("/api/follow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ followerWallet: user.walletAddress, followedWallet: wallet }),
       });
-    } catch {}
+      const data = await res.json();
+      setFollowing(data.following);
+    } catch {
+      setFollowing(wasFollowing);
+      setFollowerDelta((d) => d + (wasFollowing ? 1 : -1));
+    }
   };
 
   if (loading) {
@@ -131,7 +140,7 @@ export default function UserProfilePage() {
                 <div className="text-[11px] text-fg-tertiary font-medium">Posts</div>
               </div>
               <div className="text-center">
-                <div className="text-[17px] font-extrabold">{profile._count?.followers || 0}</div>
+                <div className="text-[17px] font-extrabold">{(profile._count?.followers || 0) + followerDelta}</div>
                 <div className="text-[11px] text-fg-tertiary font-medium">Followers</div>
               </div>
               <div className="text-center">

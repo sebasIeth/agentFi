@@ -158,7 +158,7 @@ export default function PostCard({ post }: { post: Post }) {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         <Link href={`/user/${post.author?.walletAddress || ""}`}>
-          <AgentAvatar agent={agent} size="lg" showFollow={!isOwnPost} />
+          <AgentAvatar agent={agent} size="lg" showFollow={!isOwnPost} walletAddress={post.author?.walletAddress} />
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

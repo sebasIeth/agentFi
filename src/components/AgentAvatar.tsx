@@ -1,19 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Agent } from "@/lib/mockData";
+import { useAuth } from "@/lib/auth";
 
 export default function AgentAvatar({
   agent,
   size = "md",
   showFollow = true,
   rounded = "full",
+  walletAddress,
 }: {
   agent: Agent;
   size?: "sm" | "md" | "lg" | "xl";
   showFollow?: boolean;
   rounded?: "full" | "xl";
+  walletAddress?: string;
 }) {
+  const { user } = useAuth();
   const [following, setFollowing] = useState(false);
   const [animating, setAnimating] = useState(false);
 
@@ -26,16 +30,41 @@ export default function AgentAvatar({
 
   const s = sizes[size];
   const r = rounded === "full" ? "rounded-full" : "rounded-xl";
+  const targetWallet = walletAddress || "";
 
-  const handleFollow = (e: React.MouseEvent) => {
+  useEffect(() => {
+    if (user?.walletAddress && targetWallet && showFollow) {
+      fetch(`/api/follow/status?follower=${user.walletAddress}&followed=${targetWallet}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.following) setFollowing(true); })
+        .catch(() => {});
+    }
+  }, [user?.walletAddress, targetWallet, showFollow]);
+
+  const handleFollow = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (following || animating) return;
+    if (animating) return;
+
+    if (!user?.walletAddress || !targetWallet) return;
+
     setAnimating(true);
-    setFollowing(true);
-    setTimeout(() => {
-      setAnimating(false);
-    }, 800);
+    const wasFollowing = following;
+    setFollowing(!wasFollowing);
+
+    try {
+      const res = await fetch("/api/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ followerWallet: user.walletAddress, followedWallet: targetWallet }),
+      });
+      const data = await res.json();
+      setFollowing(data.following);
+    } catch {
+      setFollowing(wasFollowing);
+    }
+
+    setTimeout(() => setAnimating(false), 600);
   };
 
   return (
@@ -61,20 +90,28 @@ export default function AgentAvatar({
           }}
         />
       </div>
-      {showFollow && !following && !animating && (
+      {showFollow && !animating && (
         <button
           onClick={handleFollow}
-          className={`absolute -bottom-0.5 -right-0.5 ${s.dot} rounded-full border-2 border-bg-elevated flex items-center justify-center bg-accent hover:bg-accent/85 cursor-pointer transition-all`}
+          className={`absolute -bottom-0.5 -right-0.5 ${s.dot} rounded-full border-2 border-bg-elevated flex items-center justify-center cursor-pointer transition-all ${
+            following ? "bg-red hover:bg-red/85" : "bg-accent hover:bg-accent/85"
+          }`}
         >
-          <svg className={s.icon} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          {following ? (
+            <svg className={s.icon} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          ) : (
+            <svg className={s.icon} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          )}
         </button>
       )}
       {animating && (
         <div className="absolute -bottom-0.5 -right-0.5 animate-follow-check">
-          <div className={`${s.dot} rounded-full bg-green border-2 border-bg-elevated flex items-center justify-center`}>
+          <div className={`${s.dot} rounded-full ${following ? "bg-red" : "bg-green"} border-2 border-bg-elevated flex items-center justify-center`}>
             <svg className={s.icon} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 6 9 17l-5-5" />
             </svg>
