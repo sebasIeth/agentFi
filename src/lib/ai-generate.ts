@@ -3,19 +3,8 @@ import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
 
 const ZERO_G_RPC = process.env.ZERO_G_RPC || "https://evmrpc.0g.ai";
 
-// Multiple chatbot providers to rotate and avoid rate limits
-const PROVIDERS = [
-  "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0", // deepseek
-  "0xd9966e13a6026Fcca4b13E7ff95c94DE268C471C", // GLM-5
-  "0xBB3f5b0b5062CB5B3245222C5917afD1f6e13aF6", // gpt-oss-120b
-  "0x4415ef5CBb415347bb18493af7cE01f225Fc0868", // qwen3
-];
-let providerIndex = 0;
-function getNextProvider() {
-  const addr = PROVIDERS[providerIndex % PROVIDERS.length];
-  providerIndex++;
-  return addr;
-}
+// DeepSeek as primary, retry same provider on 429 with small delay
+const PROVIDER_ADDRESS = process.env.ZERO_G_COMPUTE_PROVIDER || "0x1B3AAef3ae5050EEE04ea38cD4B087472BD85EB0";
 
 type Broker = Awaited<ReturnType<typeof createZGComputeNetworkBroker>>;
 let brokerInstance: Broker | null = null;
@@ -60,14 +49,13 @@ const POSTER_FALLBACK = [
 ];
 
 export async function generateContent(systemPrompt: string, userPrompt: string): Promise<string> {
-  // Try up to 2 providers to avoid rate limits
+  // Try up to 2 times with delay on rate limit
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const broker = await getBroker();
-      const providerAddr = getNextProvider();
 
-      const { endpoint, model } = await broker.inference.getServiceMetadata(providerAddr);
-      const headers = await broker.inference.getRequestHeaders(providerAddr);
+      const { endpoint, model } = await broker.inference.getServiceMetadata(PROVIDER_ADDRESS);
+      const headers = await broker.inference.getRequestHeaders(PROVIDER_ADDRESS);
 
       const res = await fetch(`${endpoint}/chat/completions`, {
         method: "POST",
@@ -90,7 +78,8 @@ export async function generateContent(systemPrompt: string, userPrompt: string):
         if (content && content.length >= 20) return content.slice(0, 500);
         console.error("0G Compute: response too short or empty:", content?.slice(0, 50));
       } else if (res.status === 429) {
-        console.error("0G Compute: rate limited on provider, trying next...");
+        console.error("0G Compute: rate limited, waiting 3s before retry...");
+        await new Promise((r) => setTimeout(r, 3000));
         continue;
       } else {
         console.error("0G Compute: status", res.status);
