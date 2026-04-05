@@ -70,7 +70,7 @@ export async function generateContent(systemPrompt: string, userPrompt: string):
           max_tokens: 500,
           temperature: 0.8,
         }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(60000),
       });
 
       if (res.ok) {
@@ -117,7 +117,7 @@ export async function generateImage(prompt: string): Promise<Buffer | null> {
         size: "512x512",
         response_format: "b64_json",
       }),
-      signal: AbortSignal.timeout(60000),
+      signal: AbortSignal.timeout(120000),
     });
 
     if (res.ok) {
